@@ -50,7 +50,10 @@ class Snapshot:
 
         baseline_output = baseline.get("output", "")
         passed, similarity = _compare(
-            str(serialized), str(baseline_output), self.mode, self.threshold
+            json.dumps(serialized, sort_keys=True, default=str),
+            json.dumps(baseline_output, sort_keys=True, default=str),
+            self.mode,
+            self.threshold,
         )
         result = SnapshotResult(
             name=name,
@@ -86,11 +89,12 @@ def _compare(
 ) -> tuple[bool, float | None]:
     if mode == "exact":
         return current == baseline, 1.0 if current == baseline else 0.0
+    if mode == "semantic":
+        from agentprobe.similarity import semantic_similarity
 
-    from agentprobe.similarity import semantic_similarity
-
-    score = semantic_similarity(current, baseline)
-    return score >= threshold, score
+        score = semantic_similarity(current, baseline)
+        return score >= threshold, score
+    raise ValueError(f"Unknown comparison mode: {mode!r}. Use 'exact' or 'semantic'.")
 
 
 def snapshot(
@@ -117,9 +121,10 @@ def snapshot(
             snap = Snapshot(update=update, mode=mode, threshold=threshold)
             result = snap.capture(snap_name, output)
             if not result.passed:
+                expected = result.baseline.get("output") if result.baseline else None
                 raise AssertionError(
                     f"Snapshot '{snap_name}' mismatch: {result.message}\n"
-                    f"  Expected: {json.dumps(result.baseline.get('output'), indent=2)[:500]}\n"
+                    f"  Expected: {json.dumps(expected, indent=2)[:500]}\n"
                     f"  Got:      {json.dumps(result.output, indent=2)[:500]}"
                 )
             return output
