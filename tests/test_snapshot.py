@@ -1,5 +1,6 @@
 """Tests for snapshot capture and comparison."""
 
+import asyncio
 import shutil
 
 import pytest
@@ -98,3 +99,32 @@ def test_snapshot_decorator_raises_on_mismatch():
     changing_agent._counter = "second"
     with pytest.raises(AssertionError, match="mismatch"):
         changing_agent()
+
+
+def test_snapshot_decorator_supports_async_functions():
+    calls = 0
+
+    @snapshot("test_async_decorator")
+    async def async_agent():
+        nonlocal calls
+        calls += 1
+        await asyncio.sleep(0)
+        return {"answer": "stable"}
+
+    assert asyncio.run(async_agent()) == {"answer": "stable"}
+    assert asyncio.run(async_agent()) == {"answer": "stable"}
+    assert calls == 2
+
+
+def test_snapshot_decorator_raises_on_async_mismatch():
+    @snapshot("test_async_decorator_fail")
+    async def changing_agent():
+        await asyncio.sleep(0)
+        return changing_agent._value
+
+    changing_agent._value = "first"
+    asyncio.run(changing_agent())
+
+    changing_agent._value = "second"
+    with pytest.raises(AssertionError, match="mismatch"):
+        asyncio.run(changing_agent())

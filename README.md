@@ -47,6 +47,15 @@ def test_summarize():
 First run: creates a baseline in `.agentprobe/snapshots/summarize_article.json`.
 Next runs: compares the output against the baseline. Fails if they differ.
 
+Async agents work the same way:
+
+```python
+@snapshot("async_summarize")
+async def test_async_summarize():
+    result = await my_agent.summarize_async("The quick brown fox jumps over the lazy dog.")
+    return result
+```
+
 ### 2. Mock LLM
 
 Test agent logic without hitting any API:
@@ -225,7 +234,7 @@ Snapshots are stored as JSON in `.agentprobe/snapshots/`. The first time you run
 
 ## Roadmap
 
-- [ ] Async agent support (`async def` tests)
+- [x] Async agent support (`async def` tests)
 - [ ] Multi-step agent tracing (record intermediate steps)
 - [ ] Cost tracking integration (with TokenTracker)
 - [ ] Visual diff in terminal for snapshot mismatches

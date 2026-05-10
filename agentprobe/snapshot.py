@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import functools
+import inspect
 import json
 import time
 from dataclasses import dataclass, field
@@ -14,6 +15,7 @@ from agentprobe.storage import load_snapshot, save_snapshot
 @dataclass
 class SnapshotResult:
     """Result of a snapshot comparison."""
+
     name: str
     output: Any
     baseline: dict[str, Any] | None
@@ -25,6 +27,7 @@ class SnapshotResult:
 @dataclass
 class Snapshot:
     """Manages snapshot state for a test session."""
+
     update: bool = False
     mode: str = "exact"
     threshold: float = 0.85
@@ -84,9 +87,7 @@ def _serialize(obj: Any) -> Any:
     return str(obj)
 
 
-def _compare(
-    current: str, baseline: str, mode: str, threshold: float
-) -> tuple[bool, float | None]:
+def _compare(current: str, baseline: str, mode: str, threshold: float) -> tuple[bool, float | None]:
     if mode == "exact":
         return current == baseline, 1.0 if current == baseline else 0.0
     if mode == "semantic":
@@ -115,20 +116,55 @@ def snapshot(
     def decorator(fn: Callable) -> Callable:
         snap_name = name or fn.__qualname__
 
+        if inspect.iscoroutinefunction(fn):
+
+            @functools.wraps(fn)
+            async def async_wrapper(*args, **kwargs):
+                output = await fn(*args, **kwargs)
+                _assert_snapshot(
+                    snap_name,
+                    output,
+                    update=update,
+                    mode=mode,
+                    threshold=threshold,
+                )
+                return output
+
+            return async_wrapper
+
         @functools.wraps(fn)
         def wrapper(*args, **kwargs):
             output = fn(*args, **kwargs)
-            snap = Snapshot(update=update, mode=mode, threshold=threshold)
-            result = snap.capture(snap_name, output)
-            if not result.passed:
-                expected = result.baseline.get("output") if result.baseline else None
-                raise AssertionError(
-                    f"Snapshot '{snap_name}' mismatch: {result.message}\n"
-                    f"  Expected: {json.dumps(expected, indent=2)[:500]}\n"
-                    f"  Got:      {json.dumps(result.output, indent=2)[:500]}"
-                )
+            _assert_snapshot(
+                snap_name,
+                output,
+                update=update,
+                mode=mode,
+                threshold=threshold,
+            )
             return output
 
         return wrapper
 
     return decorator
+
+
+def _assert_snapshot(
+    snap_name: str,
+    output: Any,
+    *,
+    update: bool,
+    mode: str,
+    threshold: float,
+) -> None:
+    snap = Snapshot(update=update, mode=mode, threshold=threshold)
+    result = snap.capture(snap_name, output)
+    if result.passed:
+        return
+
+    expected = result.baseline.get("output") if result.baseline else None
+    raise AssertionError(
+        f"Snapshot '{snap_name}' mismatch: {result.message}\n"
+        f"  Expected: {json.dumps(expected, indent=2)[:500]}\n"
+        f"  Got:      {json.dumps(result.output, indent=2)[:500]}"
+    )

@@ -46,6 +46,15 @@ def test_summarize():
 首次运行：创建基线到 `.agentprobe/snapshots/summarize_article.json`。
 后续运行：对比输出和基线，不一致则失败。
 
+异步 Agent 也可以直接使用同一个 decorator：
+
+```python
+@snapshot("async_summarize")
+async def test_async_summarize():
+    result = await my_agent.summarize_async("文章内容...")
+    return result
+```
+
 ### 2. Mock LLM
 
 不调用任何 API 测试 Agent 逻辑：
@@ -188,7 +197,7 @@ pip install agentprobe[semantic]
 
 ## 路线图
 
-- [ ] 异步 Agent 支持
+- [x] 异步 Agent 支持
 - [ ] 多步 Agent 追踪（记录中间步骤）
 - [ ] 成本追踪集成（与 TokenTracker 联动）
 - [ ] 终端中的可视化 diff
