@@ -6,6 +6,7 @@ import functools
 import inspect
 import json
 import time
+from difflib import unified_diff
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
@@ -163,8 +164,21 @@ def _assert_snapshot(
         return
 
     expected = result.baseline.get("output") if result.baseline else None
-    raise AssertionError(
-        f"Snapshot '{snap_name}' mismatch: {result.message}\n"
-        f"  Expected: {json.dumps(expected, indent=2)[:500]}\n"
-        f"  Got:      {json.dumps(result.output, indent=2)[:500]}"
+    raise AssertionError(_format_mismatch(snap_name, expected, result.output, result.message))
+
+
+def _format_mismatch(name: str, expected: Any, actual: Any, message: str) -> str:
+    expected_lines = json.dumps(expected, indent=2, sort_keys=True, default=str).splitlines()
+    actual_lines = json.dumps(actual, indent=2, sort_keys=True, default=str).splitlines()
+    diff = "\n".join(
+        unified_diff(
+            expected_lines,
+            actual_lines,
+            fromfile="snapshot",
+            tofile="current",
+            lineterm="",
+        )
     )
+    if len(diff) > 4000:
+        diff = f"{diff[:4000]}\n... diff truncated ..."
+    return f"Snapshot '{name}' mismatch: {message}\n{diff}"

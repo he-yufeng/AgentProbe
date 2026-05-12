@@ -136,6 +136,9 @@ pytest tests/ --agentprobe-update
 pytest tests/ --agentprobe-mode=semantic --agentprobe-threshold=0.85
 ```
 
+When a snapshot changes, AgentProbe prints a unified diff between the stored JSON snapshot
+and the current output, so CI logs show the exact field or sentence that drifted.
+
 ### AgentProbe CLI
 
 ```bash
@@ -237,7 +240,7 @@ Snapshots are stored as JSON in `.agentprobe/snapshots/`. The first time you run
 - [x] Async agent support (`async def` tests)
 - [ ] Multi-step agent tracing (record intermediate steps)
 - [ ] Cost tracking integration (with TokenTracker)
-- [ ] Visual diff in terminal for snapshot mismatches
+- [x] Visual diff in terminal for snapshot mismatches
 - [ ] `pytest-xdist` parallel support
 
 ## Contributing

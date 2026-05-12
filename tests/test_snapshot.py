@@ -101,6 +101,25 @@ def test_snapshot_decorator_raises_on_mismatch():
         changing_agent()
 
 
+def test_snapshot_mismatch_error_includes_unified_diff():
+    @snapshot("test_diff_output")
+    def changing_agent():
+        return {"answer": changing_agent._answer, "confidence": 0.8}
+
+    changing_agent._answer = "old answer"
+    changing_agent()
+
+    changing_agent._answer = "new answer"
+    with pytest.raises(AssertionError) as exc:
+        changing_agent()
+
+    message = str(exc.value)
+    assert "--- snapshot" in message
+    assert "+++ current" in message
+    assert '-  "answer": "old answer"' in message
+    assert '+  "answer": "new answer"' in message
+
+
 def test_snapshot_decorator_supports_async_functions():
     calls = 0
 

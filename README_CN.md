@@ -132,6 +132,9 @@ pytest tests/ --agentprobe-update
 pytest tests/ --agentprobe-mode=semantic --agentprobe-threshold=0.85
 ```
 
+快照变化时，AgentProbe 会在失败信息里输出存储 JSON 快照与当前输出的 unified diff。
+CI 日志里可以直接看到哪个字段或哪句话发生了漂移。
+
 ### AgentProbe CLI
 
 ```bash
@@ -200,7 +203,7 @@ pip install agentprobe[semantic]
 - [x] 异步 Agent 支持
 - [ ] 多步 Agent 追踪（记录中间步骤）
 - [ ] 成本追踪集成（与 TokenTracker 联动）
-- [ ] 终端中的可视化 diff
+- [x] 终端中的可视化 diff
 - [ ] `pytest-xdist` 并行支持
 
 ## 贡献
