@@ -78,7 +78,7 @@ def test_agent_with_mock():
 验证 Agent 调用了正确的工具：
 
 ```python
-from agentprobe import assert_tool_called
+from agentprobe import assert_no_tool_called, assert_tool_called, assert_tool_sequence
 
 def test_agent_uses_search():
     tool_calls = [
@@ -87,7 +87,11 @@ def test_agent_uses_search():
     ]
     assert_tool_called(tool_calls, "web_search", times=1)
     assert_tool_called(tool_calls, "web_search", with_args={"query": "最新新闻"})
+    assert_tool_sequence(tool_calls, ["web_search", "summarize"])
+    assert_no_tool_called(tool_calls, "delete_file")
 ```
+
+对于多步骤 Agent，可以用 `assert_tool_sequence(..., contiguous=True)` 检查两个工具调用必须相邻，避免 planner 重排后悄悄破坏流程。
 
 ### 4. Schema 验证
 

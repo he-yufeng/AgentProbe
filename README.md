@@ -82,7 +82,7 @@ def test_agent_with_mock():
 Verify your agent calls the right tools:
 
 ```python
-from agentprobe import assert_tool_called
+from agentprobe import assert_no_tool_called, assert_tool_called, assert_tool_sequence
 
 def test_agent_uses_search():
     tool_calls = [
@@ -91,7 +91,11 @@ def test_agent_uses_search():
     ]
     assert_tool_called(tool_calls, "web_search", times=1)
     assert_tool_called(tool_calls, "web_search", with_args={"query": "latest news"})
+    assert_tool_sequence(tool_calls, ["web_search", "summarize"])
+    assert_no_tool_called(tool_calls, "delete_file")
 ```
+
+For multi-step agents, `assert_tool_sequence(..., contiguous=True)` catches accidental planner reorderings where a tool must immediately follow another tool.
 
 ### 4. Schema Validation
 

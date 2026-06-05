@@ -3,7 +3,12 @@
 import pytest
 from pydantic import BaseModel
 
-from agentprobe.assertions import assert_tool_called, assert_schema
+from agentprobe.assertions import (
+    assert_no_tool_called,
+    assert_schema,
+    assert_tool_called,
+    assert_tool_sequence,
+)
 
 
 class SummaryResult(BaseModel):
@@ -48,6 +53,46 @@ def test_tool_called_wrong_args_raises():
     calls = [{"name": "search", "arguments": {"query": "other"}}]
     with pytest.raises(AssertionError, match="never called with args"):
         assert_tool_called(calls, "search", with_args={"query": "AI"})
+
+
+def test_tool_called_accepts_openai_function_shape():
+    calls = [{"function": {"name": "search", "arguments": {"query": "AI"}}}]
+    assert_tool_called(calls, "search", with_args={"query": "AI"})
+
+
+def test_no_tool_called_passes_and_fails():
+    calls = [{"name": "search"}]
+    assert_no_tool_called(calls, "delete_file")
+
+    with pytest.raises(AssertionError, match="expected zero"):
+        assert_no_tool_called(calls, "search")
+
+
+def test_tool_sequence_allows_gaps_by_default():
+    calls = [
+        {"name": "search"},
+        {"name": "summarize"},
+        {"name": "write_report"},
+    ]
+    assert_tool_sequence(calls, ["search", "write_report"])
+
+
+def test_tool_sequence_can_require_contiguous_order():
+    calls = [
+        {"name": "search"},
+        {"name": "summarize"},
+        {"name": "write_report"},
+    ]
+    assert_tool_sequence(calls, ["search", "summarize"], contiguous=True)
+
+    with pytest.raises(AssertionError, match="contiguous"):
+        assert_tool_sequence(calls, ["search", "write_report"], contiguous=True)
+
+
+def test_tool_sequence_reports_remaining_expected_tools():
+    calls = [{"name": "search"}]
+    with pytest.raises(AssertionError, match="Still waiting"):
+        assert_tool_sequence(calls, ["search", "write_report"])
 
 
 # -- assert_schema --

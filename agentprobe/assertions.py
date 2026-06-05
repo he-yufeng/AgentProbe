@@ -26,10 +26,10 @@ def assert_tool_called(
     Raises:
         AssertionError: If the assertion fails.
     """
-    matching = [c for c in calls if c.get("name") == tool_name]
+    matching = [call for call in calls if _tool_name(call) == tool_name]
 
     if not matching:
-        available = [c.get("name") for c in calls]
+        available = [_tool_name(call) for call in calls]
         raise AssertionError(
             f"Tool '{tool_name}' was never called. "
             f"Called tools: {available}"
@@ -42,13 +42,63 @@ def assert_tool_called(
 
     if with_args is not None:
         for call in matching:
-            args = call.get("arguments", {})
+            args = _tool_arguments(call)
             if all(args.get(k) == v for k, v in with_args.items()):
                 return
         raise AssertionError(
             f"Tool '{tool_name}' was never called with args {with_args}. "
-            f"Actual calls: {[c.get('arguments') for c in matching]}"
+            f"Actual calls: {[_tool_arguments(call) for call in matching]}"
         )
+
+
+def assert_no_tool_called(calls: list[dict[str, Any]], tool_name: str) -> None:
+    """Assert that a tool was not called."""
+    matching = [call for call in calls if _tool_name(call) == tool_name]
+    if matching:
+        raise AssertionError(
+            f"Tool '{tool_name}' was called {len(matching)} time(s), expected zero"
+        )
+
+
+def assert_tool_sequence(
+    calls: list[dict[str, Any]],
+    expected: list[str],
+    *,
+    contiguous: bool = False,
+) -> None:
+    """Assert that tool calls appear in a required order.
+
+    Args:
+        calls: Tool call records.
+        expected: Tool names that must appear in order.
+        contiguous: If true, the expected tools must be adjacent.
+    """
+    actual = [_tool_name(call) for call in calls]
+    if not expected:
+        return
+
+    if contiguous:
+        window = len(expected)
+        for start in range(0, len(actual) - window + 1):
+            if actual[start : start + window] == expected:
+                return
+        raise AssertionError(
+            f"Tool sequence {expected} was not found as a contiguous block. "
+            f"Actual order: {actual}"
+        )
+
+    position = 0
+    for name in actual:
+        if name == expected[position]:
+            position += 1
+            if position == len(expected):
+                return
+
+    missing = expected[position:]
+    raise AssertionError(
+        f"Tool sequence {expected} was not found in order. "
+        f"Still waiting for: {missing}. Actual order: {actual}"
+    )
 
 
 def assert_schema(output: Any, schema: Type[BaseModel]) -> BaseModel:
@@ -84,3 +134,22 @@ def assert_schema(output: Any, schema: Type[BaseModel]) -> BaseModel:
         return schema.model_validate(output)
     except ValidationError as e:
         raise AssertionError(f"Output does not match {schema.__name__}:\n{e}") from None
+
+
+def _tool_name(call: dict[str, Any]) -> str | None:
+    if "name" in call:
+        return call.get("name")
+    function = call.get("function")
+    if isinstance(function, dict):
+        return function.get("name")
+    return None
+
+
+def _tool_arguments(call: dict[str, Any]) -> dict[str, Any]:
+    args = call.get("arguments")
+    if isinstance(args, dict):
+        return args
+    function = call.get("function")
+    if isinstance(function, dict) and isinstance(function.get("arguments"), dict):
+        return function["arguments"]
+    return {}
