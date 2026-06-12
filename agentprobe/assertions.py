@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any, Type
 
 from pydantic import BaseModel, ValidationError
@@ -43,7 +44,7 @@ def assert_tool_called(
     if with_args is not None:
         for call in matching:
             args = _tool_arguments(call)
-            if all(args.get(k) == v for k, v in with_args.items()):
+            if _contains_subset(args, with_args):
                 return
         raise AssertionError(
             f"Tool '{tool_name}' was never called with args {with_args}. "
@@ -149,7 +150,34 @@ def _tool_arguments(call: dict[str, Any]) -> dict[str, Any]:
     args = call.get("arguments")
     if isinstance(args, dict):
         return args
+    if isinstance(args, str):
+        return _json_object(args)
     function = call.get("function")
     if isinstance(function, dict) and isinstance(function.get("arguments"), dict):
         return function["arguments"]
+    if isinstance(function, dict) and isinstance(function.get("arguments"), str):
+        return _json_object(function["arguments"])
     return {}
+
+
+def _json_object(value: str) -> dict[str, Any]:
+    try:
+        data = json.loads(value)
+    except json.JSONDecodeError:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _contains_subset(actual: Any, expected: Any) -> bool:
+    if isinstance(expected, dict):
+        if not isinstance(actual, dict):
+            return False
+        for key, value in expected.items():
+            if key not in actual or not _contains_subset(actual[key], value):
+                return False
+        return True
+    if isinstance(expected, list):
+        if not isinstance(actual, list) or len(actual) < len(expected):
+            return False
+        return all(_contains_subset(item, expected[index]) for index, item in enumerate(actual))
+    return actual == expected

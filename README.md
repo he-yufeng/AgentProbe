@@ -97,6 +97,16 @@ def test_agent_uses_search():
 
 For multi-step agents, `assert_tool_sequence(..., contiguous=True)` catches accidental planner reorderings where a tool must immediately follow another tool.
 
+`with_args` is a nested subset match and also accepts OpenAI-style JSON string arguments:
+
+```python
+assert_tool_called(
+    tool_calls,
+    "write_file",
+    with_args={"metadata": {"mode": "safe"}},
+)
+```
+
 ### 4. Schema Validation
 
 Assert that agent outputs conform to a structure:

@@ -60,6 +60,23 @@ def test_tool_called_accepts_openai_function_shape():
     assert_tool_called(calls, "search", with_args={"query": "AI"})
 
 
+def test_tool_called_accepts_json_string_arguments_and_nested_subset():
+    calls = [
+        {
+            "function": {
+                "name": "write_file",
+                "arguments": '{"path": "README.md", "metadata": {"mode": "safe", "attempt": 2}}',
+            }
+        }
+    ]
+
+    assert_tool_called(
+        calls,
+        "write_file",
+        with_args={"metadata": {"mode": "safe"}},
+    )
+
+
 def test_no_tool_called_passes_and_fails():
     calls = [{"name": "search"}]
     assert_no_tool_called(calls, "delete_file")
