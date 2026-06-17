@@ -56,6 +56,16 @@ async def test_async_summarize():
     return result
 ```
 
+When the output carries non-deterministic fields like timestamps or request ids, list them in `redact` so they're masked before comparison and don't cause spurious mismatches:
+
+```python
+@snapshot("summarize_article", redact=["timestamp", "request_id"])
+def test_summarize():
+    return my_agent.summarize("...")  # {"summary": "...", "timestamp": 1718...}
+```
+
+The named keys are replaced with `"<redacted>"` at any depth before the snapshot is saved and compared. Real changes to other fields still fail the snapshot.
+
 ### 2. Mock LLM
 
 Test agent logic without hitting any API:

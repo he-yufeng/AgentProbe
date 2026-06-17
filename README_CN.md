@@ -55,6 +55,16 @@ async def test_async_summarize():
     return result
 ```
 
+当输出里带有时间戳、request id 这类非确定字段时，把它们列进 `redact`，比较前会被屏蔽，避免误报不匹配：
+
+```python
+@snapshot("summarize_article", redact=["timestamp", "request_id"])
+def test_summarize():
+    return my_agent.summarize("...")  # {"summary": "...", "timestamp": 1718...}
+```
+
+列出的 key 会在任意层级被替换为 `"<redacted>"` 再保存和比较；其他字段的真实变化仍会让快照失败。
+
 ### 2. Mock LLM
 
 不调用任何 API 测试 Agent 逻辑：

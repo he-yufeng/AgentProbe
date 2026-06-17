@@ -5,7 +5,7 @@ import shutil
 
 import pytest
 
-from agentprobe.snapshot import Snapshot, snapshot
+from agentprobe.snapshot import Snapshot, _redact, snapshot
 from agentprobe.storage import DEFAULT_DIR
 
 
@@ -147,3 +147,47 @@ def test_snapshot_decorator_raises_on_async_mismatch():
     changing_agent._value = "second"
     with pytest.raises(AssertionError, match="mismatch"):
         asyncio.run(changing_agent())
+
+
+# -- redaction of non-deterministic fields --
+
+
+def test_redact_replaces_specified_keys_recursively():
+    out = _redact(
+        {"answer": "hi", "ts": 123, "nested": {"id": "x", "keep": 1}, "items": [{"id": "y"}]},
+        {"ts", "id"},
+    )
+    assert out == {
+        "answer": "hi",
+        "ts": "<redacted>",
+        "nested": {"id": "<redacted>", "keep": 1},
+        "items": [{"id": "<redacted>"}],
+    }
+
+
+def test_snapshot_redact_ignores_nondeterministic_fields():
+    snap = Snapshot()
+    snap.capture("test_redact", {"answer": "42", "timestamp": 1000}, redact=["timestamp"])
+    # a different timestamp must not break the snapshot when it is redacted
+    result = snap.capture("test_redact", {"answer": "42", "timestamp": 9999}, redact=["timestamp"])
+    assert result.passed
+
+
+def test_snapshot_redact_still_detects_real_changes():
+    snap = Snapshot()
+    snap.capture("test_redact_real", {"answer": "42", "timestamp": 1}, redact=["timestamp"])
+    # the redacted timestamp differs but so does the answer — that real change must fail
+    result = snap.capture(
+        "test_redact_real", {"answer": "CHANGED", "timestamp": 2}, redact=["timestamp"]
+    )
+    assert not result.passed
+
+
+def test_snapshot_decorator_accepts_redact():
+    @snapshot("test_decorator_redact", redact=["ts"])
+    def agent():
+        agent._n = getattr(agent, "_n", 0) + 1
+        return {"answer": "ok", "ts": agent._n}
+
+    agent()  # baseline
+    agent()  # ts changed but redacted -> no AssertionError
