@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
+import tempfile
+import time
 from pathlib import Path
 from typing import Any
 
@@ -24,5 +27,39 @@ def load_snapshot(name: str, directory: Path = DEFAULT_DIR) -> dict[str, Any] | 
 def save_snapshot(name: str, data: dict[str, Any], directory: Path = DEFAULT_DIR) -> Path:
     path = _snapshot_path(name, directory)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2, ensure_ascii=False, default=str), encoding="utf-8")
+    payload = json.dumps(data, indent=2, ensure_ascii=False, default=str)
+    # Write to a unique temp file in the same directory, then atomically replace.
+    # os.replace is atomic on a single filesystem, so a concurrent reader (e.g. a
+    # parallel pytest-xdist worker) always sees either the old or the new complete
+    # snapshot, never a half-written file.
+    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.stem}.", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(payload)
+        _replace_with_retry(tmp, path)
+    except BaseException:
+        # Don't leave a temp file behind if the write or replace fails.
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
     return path
+
+
+def _replace_with_retry(src: str, dst: Path, attempts: int = 20) -> None:
+    """``os.replace`` with a brief retry for Windows file-locking.
+
+    On POSIX ``os.replace`` succeeds even while a reader holds ``dst`` open. On
+    Windows it can raise ``PermissionError`` if another thread/process is reading
+    ``dst`` at that instant; the hold is momentary, so retry briefly before
+    giving up.
+    """
+    for attempt in range(attempts):
+        try:
+            os.replace(src, dst)
+            return
+        except PermissionError:
+            if attempt == attempts - 1:
+                raise
+            time.sleep(0.01)

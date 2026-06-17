@@ -255,7 +255,7 @@ Snapshots are stored as JSON in `.agentprobe/snapshots/`. The first time you run
 - [ ] Multi-step agent tracing (record intermediate steps)
 - [ ] Cost tracking integration (with TokenTracker)
 - [x] Visual diff in terminal for snapshot mismatches
-- [ ] `pytest-xdist` parallel support
+- [x] `pytest-xdist` parallel support (atomic snapshot writes)
 
 ## Contributing
 
