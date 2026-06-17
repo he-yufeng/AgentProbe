@@ -97,6 +97,13 @@ def test_agent_uses_search():
 
 For multi-step agents, `assert_tool_sequence(..., contiguous=True)` catches accidental planner reorderings where a tool must immediately follow another tool.
 
+When the exact call count is non-deterministic, use `min_times`/`max_times` instead of `times` — for example, assert a flaky API was retried at most three times, or a search ran at least twice:
+
+```python
+assert_tool_called(tool_calls, "api_call", max_times=3)   # retried, but bounded
+assert_tool_called(tool_calls, "web_search", min_times=2)  # at least two searches
+```
+
 `with_args` is a nested subset match and also accepts OpenAI-style JSON string arguments:
 
 ```python

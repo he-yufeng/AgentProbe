@@ -60,6 +60,47 @@ def test_tool_called_accepts_openai_function_shape():
     assert_tool_called(calls, "search", with_args={"query": "AI"})
 
 
+def _n_calls(name: str, n: int) -> list[dict[str, object]]:
+    return [{"name": name} for _ in range(n)]
+
+
+def test_tool_called_min_times_passes_when_at_or_above_floor():
+    assert_tool_called(_n_calls("search", 3), "search", min_times=2)
+    assert_tool_called(_n_calls("search", 2), "search", min_times=2)
+
+
+def test_tool_called_min_times_raises_when_below_floor():
+    with pytest.raises(AssertionError, match="at least 3"):
+        assert_tool_called(_n_calls("search", 2), "search", min_times=3)
+
+
+def test_tool_called_max_times_passes_within_ceiling():
+    # "retried at most 3 times" — called once or up to the ceiling, both fine
+    assert_tool_called(_n_calls("api_call", 1), "api_call", max_times=3)
+    assert_tool_called(_n_calls("api_call", 3), "api_call", max_times=3)
+
+
+def test_tool_called_max_times_raises_above_ceiling():
+    with pytest.raises(AssertionError, match="at most 3"):
+        assert_tool_called(_n_calls("api_call", 4), "api_call", max_times=3)
+
+
+def test_tool_called_min_and_max_define_a_range():
+    assert_tool_called(_n_calls("search", 2), "search", min_times=1, max_times=3)
+    with pytest.raises(AssertionError, match="at most 3"):
+        assert_tool_called(_n_calls("search", 5), "search", min_times=1, max_times=3)
+
+
+def test_tool_called_times_conflicts_with_min_or_max():
+    with pytest.raises(ValueError, match="times.*min_times.*max_times|cannot"):
+        assert_tool_called(_n_calls("search", 2), "search", times=2, min_times=1)
+
+
+def test_tool_called_min_above_max_is_a_usage_error():
+    with pytest.raises(ValueError, match="min_times.*max_times|greater"):
+        assert_tool_called(_n_calls("search", 2), "search", min_times=3, max_times=1)
+
+
 def test_tool_called_accepts_json_string_arguments_and_nested_subset():
     calls = [
         {

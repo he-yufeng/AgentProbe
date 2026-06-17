@@ -13,6 +13,9 @@ def assert_tool_called(
     tool_name: str,
     times: int | None = None,
     with_args: dict[str, Any] | None = None,
+    *,
+    min_times: int | None = None,
+    max_times: int | None = None,
 ) -> None:
     """Assert that a tool was called in the recorded interactions.
 
@@ -23,10 +26,23 @@ def assert_tool_called(
         tool_name: The expected tool/function name.
         times: If set, assert the tool was called exactly this many times.
         with_args: If set, assert at least one call had these argument key-value pairs.
+        min_times: If set, assert the tool was called at least this many times.
+        max_times: If set, assert the tool was called at most this many times.
+
+    ``min_times``/``max_times`` are for non-deterministic agents where an exact
+    count is too brittle — e.g. "retried at most 3 times" or "searched at least
+    twice". The tool must still have been called at least once. ``times`` is
+    mutually exclusive with ``min_times``/``max_times``.
 
     Raises:
         AssertionError: If the assertion fails.
+        ValueError: If the count arguments are combined incoherently.
     """
+    if times is not None and (min_times is not None or max_times is not None):
+        raise ValueError("times cannot be combined with min_times/max_times")
+    if min_times is not None and max_times is not None and min_times > max_times:
+        raise ValueError(f"min_times ({min_times}) is greater than max_times ({max_times})")
+
     matching = [call for call in calls if _tool_name(call) == tool_name]
 
     if not matching:
@@ -36,9 +52,18 @@ def assert_tool_called(
             f"Called tools: {available}"
         )
 
-    if times is not None and len(matching) != times:
+    count = len(matching)
+    if times is not None and count != times:
         raise AssertionError(
-            f"Tool '{tool_name}' was called {len(matching)} time(s), expected {times}"
+            f"Tool '{tool_name}' was called {count} time(s), expected {times}"
+        )
+    if min_times is not None and count < min_times:
+        raise AssertionError(
+            f"Tool '{tool_name}' was called {count} time(s), expected at least {min_times}"
+        )
+    if max_times is not None and count > max_times:
+        raise AssertionError(
+            f"Tool '{tool_name}' was called {count} time(s), expected at most {max_times}"
         )
 
     if with_args is not None:

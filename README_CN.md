@@ -93,6 +93,13 @@ def test_agent_uses_search():
 
 对于多步骤 Agent，可以用 `assert_tool_sequence(..., contiguous=True)` 检查两个工具调用必须相邻，避免 planner 重排后悄悄破坏流程。
 
+当调用次数不确定时，用 `min_times`/`max_times` 替代精确的 `times`——比如断言不稳定的 API 最多重试三次，或搜索至少跑了两次：
+
+```python
+assert_tool_called(tool_calls, "api_call", max_times=3)   # 有重试，但有上限
+assert_tool_called(tool_calls, "web_search", min_times=2)  # 至少两次搜索
+```
+
 `with_args` 支持嵌套 subset 匹配，也能处理 OpenAI function call 常见的 JSON 字符串参数：
 
 ```python
