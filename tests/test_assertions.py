@@ -4,6 +4,7 @@ import pytest
 from pydantic import BaseModel
 
 from agentprobe.assertions import (
+    assert_no_repeated_calls,
     assert_no_tool_called,
     assert_only_tools_used,
     assert_schema,
@@ -237,3 +238,42 @@ def test_only_tools_used_raises_on_out_of_scope_tool():
     calls = [{"name": "search"}, {"name": "delete_file"}, {"name": "shell"}]
     with pytest.raises(AssertionError, match="delete_file"):
         assert_only_tools_used(calls, ["search", "read_file"])
+
+
+# -- assert_no_repeated_calls --
+
+def test_no_repeated_calls_passes_for_varied_calls():
+    calls = [
+        {"name": "search", "arguments": {"query": "a"}},
+        {"name": "search", "arguments": {"query": "b"}},  # same tool, new args: fine
+        {"name": "open", "arguments": {"path": "x"}},
+        {"name": "search", "arguments": {"query": "a"}},  # repeat but not consecutive
+    ]
+    assert_no_repeated_calls(calls)
+
+
+def test_no_repeated_calls_raises_on_back_to_back_duplicate():
+    calls = [
+        {"name": "search", "arguments": {"query": "a"}},
+        {"name": "search", "arguments": {"query": "a"}},
+    ]
+    with pytest.raises(AssertionError, match="stuck in a loop"):
+        assert_no_repeated_calls(calls)
+
+
+def test_no_repeated_calls_allows_bounded_retries():
+    calls = [
+        {"name": "fetch", "arguments": {"url": "u"}},
+        {"name": "fetch", "arguments": {"url": "u"}},
+        {"name": "fetch", "arguments": {"url": "u"}},
+    ]
+    # three identical in a row is tolerated when retries are allowed...
+    assert_no_repeated_calls(calls, max_consecutive=3)
+    # ...but the same run trips a tighter ceiling.
+    with pytest.raises(AssertionError):
+        assert_no_repeated_calls(calls, max_consecutive=2)
+
+
+def test_no_repeated_calls_rejects_bad_max_consecutive():
+    with pytest.raises(ValueError):
+        assert_no_repeated_calls([], max_consecutive=0)

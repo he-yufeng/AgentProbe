@@ -117,6 +117,55 @@ def assert_only_tools_used(
         )
 
 
+def assert_no_repeated_calls(
+    calls: list[dict[str, Any]],
+    *,
+    max_consecutive: int = 1,
+) -> None:
+    """Assert the agent never repeats the same tool call back-to-back.
+
+    A tool invoked again immediately with identical arguments is the classic
+    signature of an agent stuck in a loop: it took an action, learned nothing,
+    and did the exact same thing again. This catches that regression regardless
+    of how many distinct tools ran overall.
+
+    Args:
+        calls: List of tool call records, each with a "name"/"function" key and
+            optionally "arguments".
+        max_consecutive: How many identical calls in a row are tolerated before
+            it counts as a loop. Default 1 (any immediate repeat fails); raise it
+            for agents that legitimately retry the same call a bounded number of
+            times.
+
+    Raises:
+        AssertionError: If a tool call repeats (same name and arguments) more
+            than ``max_consecutive`` times in a row.
+        ValueError: If ``max_consecutive`` is less than 1.
+    """
+    if max_consecutive < 1:
+        raise ValueError("max_consecutive must be at least 1")
+
+    run_name: str | None = None
+    run_args: dict[str, Any] | None = None
+    run_length = 0
+    for call in calls:
+        name = _tool_name(call)
+        if name is None:
+            run_name, run_args, run_length = None, None, 0
+            continue
+        args = _tool_arguments(call)
+        if name == run_name and args == run_args:
+            run_length += 1
+            if run_length > max_consecutive:
+                raise AssertionError(
+                    f"Tool '{name}' was called {run_length} times in a row with "
+                    f"identical arguments {args} -- the agent looks stuck in a "
+                    f"loop (max_consecutive={max_consecutive})."
+                )
+        else:
+            run_name, run_args, run_length = name, args, 1
+
+
 def assert_tool_not_called_with(
     calls: list[dict[str, Any]],
     tool_name: str,
