@@ -7,6 +7,7 @@ from agentprobe.assertions import (
     assert_no_tool_called,
     assert_schema,
     assert_tool_called,
+    assert_tool_not_called_with,
     assert_tool_sequence,
 )
 
@@ -124,6 +125,41 @@ def test_no_tool_called_passes_and_fails():
 
     with pytest.raises(AssertionError, match="expected zero"):
         assert_no_tool_called(calls, "search")
+
+
+# -- assert_tool_not_called_with --
+
+
+def test_tool_not_called_with_passes_when_args_absent():
+    # The tool is used, but never with the forbidden argument.
+    calls = [
+        {"name": "run", "arguments": {"cmd": "ls"}},
+        {"name": "run", "arguments": {"cmd": "cat f", "sudo": False}},
+    ]
+    assert_tool_not_called_with(calls, "run", {"sudo": True})
+
+
+def test_tool_not_called_with_passes_when_tool_absent():
+    calls = [{"name": "search", "arguments": {"q": "x"}}]
+    assert_tool_not_called_with(calls, "delete_file", {"path": "/"})
+
+
+def test_tool_not_called_with_raises_on_forbidden_args():
+    calls = [
+        {"name": "delete_file", "arguments": {"path": "/tmp/x"}},
+        {"name": "delete_file", "arguments": {"path": "/", "recursive": True}},
+    ]
+    with pytest.raises(AssertionError, match="forbidden args"):
+        assert_tool_not_called_with(calls, "delete_file", {"path": "/"})
+
+
+def test_tool_not_called_with_matches_json_and_function_shape():
+    # JSON-string arguments and the OpenAI function shape are both inspected.
+    calls = [
+        {"function": {"name": "run", "arguments": '{"cmd": "rm", "sudo": true}'}},
+    ]
+    with pytest.raises(AssertionError, match="forbidden args"):
+        assert_tool_not_called_with(calls, "run", {"sudo": True})
 
 
 def test_tool_sequence_allows_gaps_by_default():

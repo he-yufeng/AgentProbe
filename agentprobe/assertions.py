@@ -86,6 +86,40 @@ def assert_no_tool_called(calls: list[dict[str, Any]], tool_name: str) -> None:
         )
 
 
+def assert_tool_not_called_with(
+    calls: list[dict[str, Any]],
+    tool_name: str,
+    with_args: dict[str, Any],
+) -> None:
+    """Assert that a tool was never called with a given set of arguments.
+
+    Where ``assert_no_tool_called`` forbids a tool entirely, this allows the
+    tool but fails if any call carried the given argument subset — the negative
+    counterpart to ``assert_tool_called(..., with_args=...)``. Useful for safety
+    checks such as "the agent may run shell commands but must never call
+    ``run`` with ``sudo=True``", or "may delete files but never with
+    ``path='/'``".
+
+    Args:
+        calls: Tool call records.
+        tool_name: The tool/function name to inspect.
+        with_args: Argument key-value pairs that must not appear together in any
+            call to ``tool_name`` (matched as a nested-aware subset).
+
+    Raises:
+        AssertionError: If any call to ``tool_name`` matched ``with_args``.
+    """
+    for call in calls:
+        if _tool_name(call) != tool_name:
+            continue
+        args = _tool_arguments(call)
+        if _contains_subset(args, with_args):
+            raise AssertionError(
+                f"Tool '{tool_name}' was called with forbidden args {with_args}. "
+                f"Offending call args: {args}"
+            )
+
+
 def assert_tool_sequence(
     calls: list[dict[str, Any]],
     expected: list[str],

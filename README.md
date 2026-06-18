@@ -124,6 +124,15 @@ assert_tool_called(
 )
 ```
 
+For safety checks, `assert_tool_not_called_with` is the negative counterpart: it allows the tool but fails if any call carried a forbidden argument subset — handy when a tool is fine to use except in a dangerous mode:
+
+```python
+# the agent may run shell commands, but never with sudo
+assert_tool_not_called_with(tool_calls, "run", {"sudo": True})
+# and may delete files, but never the filesystem root
+assert_tool_not_called_with(tool_calls, "delete_file", {"path": "/"})
+```
+
 ### 4. Schema Validation
 
 Assert that agent outputs conform to a structure:

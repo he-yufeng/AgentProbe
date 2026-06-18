@@ -4,6 +4,7 @@ from agentprobe.assertions import (
     assert_no_tool_called,
     assert_schema,
     assert_tool_called,
+    assert_tool_not_called_with,
     assert_tool_sequence,
 )
 from agentprobe.mock_llm import MockLLM
@@ -16,6 +17,7 @@ __all__ = [
     "MockLLM",
     "assert_tool_called",
     "assert_no_tool_called",
+    "assert_tool_not_called_with",
     "assert_tool_sequence",
     "assert_schema",
 ]
