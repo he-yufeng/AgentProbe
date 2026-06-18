@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from typing import Any, Type
 
 from pydantic import BaseModel, ValidationError
@@ -83,6 +84,36 @@ def assert_no_tool_called(calls: list[dict[str, Any]], tool_name: str) -> None:
     if matching:
         raise AssertionError(
             f"Tool '{tool_name}' was called {len(matching)} time(s), expected zero"
+        )
+
+
+def assert_only_tools_used(
+    calls: list[dict[str, Any]],
+    allowed_tools: Iterable[str],
+) -> None:
+    """Assert that every tool call uses a tool on the allowlist.
+
+    The allowlist complement to the per-tool checks: useful for scoping and
+    safety tests where an agent must stay within a permitted set (for example
+    read-only tools) and never reach for an out-of-scope one such as write,
+    delete or shell. Calls with no recognizable tool name are ignored, and
+    using no tools at all trivially passes.
+
+    Args:
+        calls: List of tool call records, each with a "name"/"function" key.
+        allowed_tools: The permitted tool names.
+
+    Raises:
+        AssertionError: If any call used a tool outside the allowlist.
+    """
+    allowed = set(allowed_tools)
+    offending = sorted(
+        {name for call in calls if (name := _tool_name(call)) and name not in allowed}
+    )
+    if offending:
+        raise AssertionError(
+            f"Agent used tool(s) outside the allowlist: {offending}. "
+            f"Allowed: {sorted(allowed)}"
         )
 
 

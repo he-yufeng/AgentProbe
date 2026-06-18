@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from agentprobe.assertions import (
     assert_no_tool_called,
+    assert_only_tools_used,
     assert_schema,
     assert_tool_called,
     assert_tool_not_called_with,
@@ -219,3 +220,20 @@ def test_schema_invalid_raises():
 def test_schema_bad_json_raises():
     with pytest.raises(AssertionError, match="not valid JSON"):
         assert_schema("not json {{{", SummaryResult)
+
+
+# -- assert_only_tools_used --
+
+def test_only_tools_used_passes_within_allowlist():
+    calls = [{"name": "search"}, {"name": "read_file"}]
+    assert_only_tools_used(calls, {"search", "read_file", "list_dir"})
+
+
+def test_only_tools_used_passes_with_no_calls():
+    assert_only_tools_used([], {"search"})
+
+
+def test_only_tools_used_raises_on_out_of_scope_tool():
+    calls = [{"name": "search"}, {"name": "delete_file"}, {"name": "shell"}]
+    with pytest.raises(AssertionError, match="delete_file"):
+        assert_only_tools_used(calls, ["search", "read_file"])

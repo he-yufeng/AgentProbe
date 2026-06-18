@@ -2,6 +2,7 @@
 
 from agentprobe.assertions import (
     assert_no_tool_called,
+    assert_only_tools_used,
     assert_schema,
     assert_tool_called,
     assert_tool_not_called_with,
@@ -17,6 +18,7 @@ __all__ = [
     "MockLLM",
     "assert_tool_called",
     "assert_no_tool_called",
+    "assert_only_tools_used",
     "assert_tool_not_called_with",
     "assert_tool_sequence",
     "assert_schema",
