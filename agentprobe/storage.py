@@ -47,14 +47,20 @@ def save_snapshot(name: str, data: dict[str, Any], directory: Path = DEFAULT_DIR
     return path
 
 
-def _replace_with_retry(src: str, dst: Path, attempts: int = 20) -> None:
-    """``os.replace`` with a brief retry for Windows file-locking.
+def _replace_with_retry(
+    src: str, dst: Path, attempts: int = 40, base_delay: float = 0.005
+) -> None:
+    """``os.replace`` with exponential-backoff retry for Windows file-locking.
 
     On POSIX ``os.replace`` succeeds even while a reader holds ``dst`` open. On
     Windows it can raise ``PermissionError`` if another thread/process is reading
-    ``dst`` at that instant; the hold is momentary, so retry briefly before
-    giving up.
+    ``dst`` at that instant. Under sustained contention — the documented use case
+    of many parallel pytest-xdist workers hammering one snapshot — the lock can
+    recur, so back off exponentially (capped) to widen the retry window well
+    beyond a single momentary hold before giving up. The happy path still
+    replaces on the first attempt with no delay.
     """
+    delay = base_delay
     for attempt in range(attempts):
         try:
             os.replace(src, dst)
@@ -62,4 +68,5 @@ def _replace_with_retry(src: str, dst: Path, attempts: int = 20) -> None:
         except PermissionError:
             if attempt == attempts - 1:
                 raise
-            time.sleep(0.01)
+            time.sleep(delay)
+            delay = min(delay * 2, 0.1)
