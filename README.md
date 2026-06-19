@@ -152,6 +152,26 @@ def test_output_structure():
     assert result.confidence > 0.8
 ```
 
+### 5. Multi-Step Tracing
+
+Record what an agent did step by step, then assert over the trace or snapshot it. `trace.tool_calls` drops straight into the assertion helpers:
+
+```python
+from agentprobe import Trace, assert_tool_sequence
+
+def test_research_flow():
+    trace = Trace()
+    # record steps as your agent runs (tool calls, LLM turns, custom events)
+    trace.record_llm("planning the search")
+    trace.record_tool_call("search", {"query": "rainfall 2023"})
+    trace.record_event("retry", attempt=2)
+    trace.record_tool_call("fetch", {"url": "https://example.com"})
+
+    assert_tool_sequence(trace.tool_calls, ["search", "fetch"])
+    assert trace.names == ["llm", "search", "retry", "fetch"]
+    # trace.to_dict() is snapshot-friendly for full-run regression tests
+```
+
 ## Pytest Integration
 
 AgentProbe registers as a pytest plugin automatically. Use the `agentprobe` fixture:
@@ -278,7 +298,7 @@ Snapshots are stored as JSON in `.agentprobe/snapshots/`. The first time you run
 ## Roadmap
 
 - [x] Async agent support (`async def` tests)
-- [ ] Multi-step agent tracing (record intermediate steps)
+- [x] Multi-step agent tracing (record intermediate steps)
 - [ ] Cost tracking integration (with TokenTracker)
 - [x] Visual diff in terminal for snapshot mismatches
 - [x] `pytest-xdist` parallel support (atomic snapshot writes)

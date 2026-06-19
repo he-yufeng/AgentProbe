@@ -11,12 +11,15 @@ from agentprobe.assertions import (
 )
 from agentprobe.mock_llm import MockLLM
 from agentprobe.snapshot import Snapshot, snapshot
+from agentprobe.trace import Step, Trace
 
 __version__ = "0.1.0"
 __all__ = [
     "snapshot",
     "Snapshot",
     "MockLLM",
+    "Trace",
+    "Step",
     "assert_tool_called",
     "assert_no_tool_called",
     "assert_no_repeated_calls",
