@@ -48,16 +48,11 @@ def assert_tool_called(
 
     if not matching:
         available = [_tool_name(call) for call in calls]
-        raise AssertionError(
-            f"Tool '{tool_name}' was never called. "
-            f"Called tools: {available}"
-        )
+        raise AssertionError(f"Tool '{tool_name}' was never called. Called tools: {available}")
 
     count = len(matching)
     if times is not None and count != times:
-        raise AssertionError(
-            f"Tool '{tool_name}' was called {count} time(s), expected {times}"
-        )
+        raise AssertionError(f"Tool '{tool_name}' was called {count} time(s), expected {times}")
     if min_times is not None and count < min_times:
         raise AssertionError(
             f"Tool '{tool_name}' was called {count} time(s), expected at least {min_times}"
@@ -112,8 +107,7 @@ def assert_only_tools_used(
     )
     if offending:
         raise AssertionError(
-            f"Agent used tool(s) outside the allowlist: {offending}. "
-            f"Allowed: {sorted(allowed)}"
+            f"Agent used tool(s) outside the allowlist: {offending}. Allowed: {sorted(allowed)}"
         )
 
 
@@ -223,8 +217,7 @@ def assert_tool_sequence(
             if actual[start : start + window] == expected:
                 return
         raise AssertionError(
-            f"Tool sequence {expected} was not found as a contiguous block. "
-            f"Actual order: {actual}"
+            f"Tool sequence {expected} was not found as a contiguous block. Actual order: {actual}"
         )
 
     position = 0
@@ -266,14 +259,41 @@ def assert_schema(output: Any, schema: Type[BaseModel]) -> BaseModel:
             raise AssertionError(f"Output is not valid JSON: {e}") from None
 
     if not isinstance(output, dict):
-        raise AssertionError(
-            f"Expected dict or {schema.__name__}, got {type(output).__name__}"
-        )
+        raise AssertionError(f"Expected dict or {schema.__name__}, got {type(output).__name__}")
 
     try:
         return schema.model_validate(output)
     except ValidationError as e:
         raise AssertionError(f"Output does not match {schema.__name__}:\n{e}") from None
+
+
+def assert_cost_under(trace: Any, max_usd: float, *, pricing: Any = None) -> None:
+    """Assert a recorded run's estimated LLM cost stays under a USD budget.
+
+    The cost-side counterpart to the tool-call checks: catch a regression that
+    makes an agent burn more money (bigger prompts, extra turns, a pricier
+    model) even when its tool behaviour looks unchanged.
+
+    Args:
+        trace: a :class:`agentprobe.Trace` (anything with ``estimate_cost``).
+        max_usd: the budget the run must stay under.
+        pricing: passed through to ``trace.estimate_cost`` — a
+            ``(model, in, out) -> float`` callable, a
+            ``{model: (in_per_1k, out_per_1k)}`` dict, or ``None`` to use
+            TokenTracker's price table when installed.
+
+    Raises:
+        AssertionError: if the cost exceeds ``max_usd``, or if no price source
+            is available to estimate it.
+    """
+    cost = trace.estimate_cost(pricing)
+    if cost is None:
+        raise AssertionError(
+            "Cannot estimate cost: no pricing available (pass `pricing=...` or "
+            "`pip install tokentracker`) and no LLM step carried model/token data."
+        )
+    if cost > max_usd:
+        raise AssertionError(f"Run cost ${cost:.6f} exceeds the budget of ${max_usd:.6f}")
 
 
 def _tool_name(call: dict[str, Any]) -> str | None:

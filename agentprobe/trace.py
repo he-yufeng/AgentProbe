@@ -39,9 +39,29 @@ class Trace:
         self.steps.append(step)
         return step
 
-    def record_llm(self, content: str = "", *, name: str = "llm", **data: Any) -> Step:
-        """Record an LLM turn (its text and any metadata, e.g. token counts)."""
-        step = Step(LLM, name, {"content": content, **data})
+    def record_llm(
+        self,
+        content: str = "",
+        *,
+        name: str = "llm",
+        model: str | None = None,
+        input_tokens: int = 0,
+        output_tokens: int = 0,
+        **data: Any,
+    ) -> Step:
+        """Record an LLM turn — its text, the model, and token counts.
+
+        ``model`` / ``input_tokens`` / ``output_tokens`` feed
+        :meth:`estimate_cost`; any extra metadata goes through ``**data``.
+        """
+        payload: dict[str, Any] = {"content": content, **data}
+        if model is not None:
+            payload["model"] = model
+        if input_tokens:
+            payload["input_tokens"] = input_tokens
+        if output_tokens:
+            payload["output_tokens"] = output_tokens
+        step = Step(LLM, name, payload)
         self.steps.append(step)
         return step
 
@@ -69,6 +89,44 @@ class Trace:
         """All steps of a given kind, in order."""
         return [s for s in self.steps if s.kind == kind]
 
+    def token_usage(self) -> tuple[int, int]:
+        """Total (input, output) tokens summed across recorded LLM steps."""
+        inp = sum(s.data.get("input_tokens", 0) or 0 for s in self.steps if s.kind == LLM)
+        out = sum(s.data.get("output_tokens", 0) or 0 for s in self.steps if s.kind == LLM)
+        return inp, out
+
+    def estimate_cost(self, pricing: Any = None) -> float | None:
+        """Estimate the total USD cost of the run's LLM steps.
+
+        ``pricing`` resolves prices, and may be:
+
+        * a callable ``(model, input_tokens, output_tokens) -> float``;
+        * a dict ``{model: (input_per_1k_usd, output_per_1k_usd)}``;
+        * ``None`` — fall back to TokenTracker's price table if it's installed
+          (``pip install tokentracker``).
+
+        Returns ``None`` when no price source is available, or when no LLM step
+        carried a model/token count to price.
+        """
+        price = _resolve_pricing(pricing)
+        if price is None:
+            return None
+        total = 0.0
+        priced_any = False
+        for step in self.steps:
+            if step.kind != LLM:
+                continue
+            model = step.data.get("model")
+            inp = step.data.get("input_tokens", 0) or 0
+            out = step.data.get("output_tokens", 0) or 0
+            if not model and not (inp or out):
+                continue
+            cost = price(model, inp, out)
+            if cost is not None:
+                total += cost
+                priced_any = True
+        return total if priced_any else None
+
     def to_dict(self) -> dict[str, Any]:
         """Serializable form — useful for snapshot-testing the whole trace."""
         return {"steps": [{"kind": s.kind, "name": s.name, "data": s.data} for s in self.steps]}
@@ -81,3 +139,31 @@ class Trace:
 
     def __getitem__(self, index: int) -> Step:
         return self.steps[index]
+
+
+def _resolve_pricing(pricing: Any) -> Any:
+    """Turn a pricing spec into a ``(model, in, out) -> float | None`` callable.
+
+    ``None`` falls back to TokenTracker's price table when installed; a dict maps
+    ``{model: (input_per_1k, output_per_1k)}``; a callable is used directly.
+    Returns ``None`` if no usable price source exists.
+    """
+    if pricing is None:
+        try:
+            from tokentracker.pricing import estimate_cost as tt_estimate_cost
+        except Exception:
+            return None
+        return lambda model, inp, out: tt_estimate_cost(model, inp, out) if model else None
+    if callable(pricing):
+        return pricing
+    if isinstance(pricing, dict):
+
+        def from_table(model: Any, inp: int, out: int) -> float | None:
+            rates = pricing.get(model)
+            if rates is None:
+                return None
+            in_rate, out_rate = rates
+            return inp / 1000 * in_rate + out / 1000 * out_rate
+
+        return from_table
+    return None

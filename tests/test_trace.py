@@ -2,7 +2,14 @@
 
 from __future__ import annotations
 
-from agentprobe import Trace, assert_tool_called, assert_tool_sequence
+import pytest
+
+from agentprobe import (
+    Trace,
+    assert_cost_under,
+    assert_tool_called,
+    assert_tool_sequence,
+)
 from agentprobe.trace import EVENT, LLM, TOOL_CALL
 
 
@@ -60,3 +67,58 @@ def test_indexing_and_returned_step():
     assert trace[0] is step
     assert step.data["content"] == "hi"
     assert step.data["tokens"] == 5
+
+
+# pricing: {model: (input_per_1k_usd, output_per_1k_usd)}
+_PRICING = {"gpt-4o": (0.005, 0.015)}
+
+
+def test_token_usage_totals():
+    trace = Trace()
+    trace.record_llm("a", model="gpt-4o", input_tokens=100, output_tokens=40)
+    trace.record_llm("b", model="gpt-4o", input_tokens=200, output_tokens=10)
+    trace.record_tool_call("search")  # non-llm step ignored
+    assert trace.token_usage() == (300, 50)
+
+
+def test_estimate_cost_with_dict_pricing():
+    trace = Trace()
+    trace.record_llm("a", model="gpt-4o", input_tokens=1000, output_tokens=500)
+    # 1000/1000*0.005 + 500/1000*0.015 = 0.005 + 0.0075
+    assert trace.estimate_cost(_PRICING) == pytest.approx(0.0125)
+
+
+def test_estimate_cost_with_callable_pricing():
+    trace = Trace()
+    trace.record_llm("a", model="any", input_tokens=10, output_tokens=20)
+    cost = trace.estimate_cost(lambda model, inp, out: (inp + out) * 0.001)
+    assert cost == pytest.approx(0.03)
+
+
+def test_estimate_cost_unknown_model_in_table_is_none():
+    trace = Trace()
+    trace.record_llm("a", model="mystery-model", input_tokens=100, output_tokens=50)
+    # model not in the pricing table -> nothing priceable -> None
+    assert trace.estimate_cost(_PRICING) is None
+
+
+def test_estimate_cost_no_llm_data_is_none():
+    trace = Trace()
+    trace.record_tool_call("search")
+    assert trace.estimate_cost(_PRICING) is None
+
+
+def test_assert_cost_under_passes_and_fails():
+    trace = Trace()
+    trace.record_llm("a", model="gpt-4o", input_tokens=1000, output_tokens=500)  # $0.0125
+    assert_cost_under(trace, 0.02, pricing=_PRICING)  # under budget -> ok
+    with pytest.raises(AssertionError, match="exceeds the budget"):
+        assert_cost_under(trace, 0.01, pricing=_PRICING)
+
+
+def test_assert_cost_under_raises_without_pricing_source():
+    trace = Trace()
+    trace.record_llm("a", model="gpt-4o", input_tokens=100, output_tokens=50)
+    # an explicit empty table prices nothing -> can't estimate -> AssertionError
+    with pytest.raises(AssertionError, match="Cannot estimate cost"):
+        assert_cost_under(trace, 1.0, pricing={})

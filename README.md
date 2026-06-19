@@ -172,6 +172,23 @@ def test_research_flow():
     # trace.to_dict() is snapshot-friendly for full-run regression tests
 ```
 
+### 6. Cost Tracking
+
+Record token usage on a trace and assert the run stayed under a USD budget — catching regressions that quietly burn more money (longer prompts, extra turns, a pricier model). Pricing comes from a dict, a callable, or [TokenTracker](https://github.com/he-yufeng/TokenTracker)'s price table when it's installed:
+
+```python
+from agentprobe import Trace, assert_cost_under
+
+def test_run_stays_under_budget():
+    trace = Trace()
+    trace.record_llm("plan", model="gpt-4o", input_tokens=1200, output_tokens=300)
+    trace.record_llm("answer", model="gpt-4o", input_tokens=800, output_tokens=500)
+
+    # pricing dict: {model: (input_per_1k_usd, output_per_1k_usd)}
+    assert_cost_under(trace, 0.05, pricing={"gpt-4o": (0.005, 0.015)})
+    # or pricing=None to use TokenTracker's table (pip install tokentracker)
+```
+
 ## Pytest Integration
 
 AgentProbe registers as a pytest plugin automatically. Use the `agentprobe` fixture:
@@ -299,7 +316,7 @@ Snapshots are stored as JSON in `.agentprobe/snapshots/`. The first time you run
 
 - [x] Async agent support (`async def` tests)
 - [x] Multi-step agent tracing (record intermediate steps)
-- [ ] Cost tracking integration (with TokenTracker)
+- [x] Cost tracking integration (with TokenTracker)
 - [x] Visual diff in terminal for snapshot mismatches
 - [x] `pytest-xdist` parallel support (atomic snapshot writes)
 

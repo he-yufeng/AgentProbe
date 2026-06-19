@@ -1,6 +1,7 @@
 """AgentProbe — regression-testing for AI agents."""
 
 from agentprobe.assertions import (
+    assert_cost_under,
     assert_no_repeated_calls,
     assert_no_tool_called,
     assert_only_tools_used,
@@ -20,6 +21,7 @@ __all__ = [
     "MockLLM",
     "Trace",
     "Step",
+    "assert_cost_under",
     "assert_tool_called",
     "assert_no_tool_called",
     "assert_no_repeated_calls",
