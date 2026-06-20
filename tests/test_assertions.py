@@ -230,6 +230,21 @@ def test_only_tools_used_passes_within_allowlist():
     assert_only_tools_used(calls, {"search", "read_file", "list_dir"})
 
 
+# -- with_args nested list subset --
+
+def test_with_args_list_subset_allows_extra_actual_items():
+    # A list in with_args is a prefix-subset: extra trailing items in the actual
+    # call must match without crashing the matcher.
+    calls = [{"name": "search", "arguments": {"tags": ["a", "b", "c"]}}]
+    assert_tool_called(calls, "search", with_args={"tags": ["a"]})
+
+
+def test_with_args_list_subset_mismatch_fails_cleanly():
+    calls = [{"name": "search", "arguments": {"tags": ["a", "b"]}}]
+    with pytest.raises(AssertionError):
+        assert_tool_called(calls, "search", with_args={"tags": ["z"]})
+
+
 def test_only_tools_used_passes_with_no_calls():
     assert_only_tools_used([], {"search"})
 

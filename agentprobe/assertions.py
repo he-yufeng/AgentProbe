@@ -338,5 +338,9 @@ def _contains_subset(actual: Any, expected: Any) -> bool:
     if isinstance(expected, list):
         if not isinstance(actual, list) or len(actual) < len(expected):
             return False
-        return all(_contains_subset(item, expected[index]) for index, item in enumerate(actual))
+        # A list is matched as a prefix-subset: each expected item must match the
+        # actual item at the same position, while extra trailing actual items are
+        # allowed. Iterate over expected (the shorter list) so a longer actual
+        # list doesn't index past its end.
+        return all(_contains_subset(actual[index], item) for index, item in enumerate(expected))
     return actual == expected
