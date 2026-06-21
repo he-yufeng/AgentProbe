@@ -2,6 +2,7 @@
 
 from agentprobe.assertions import (
     assert_cost_under,
+    assert_max_tool_calls,
     assert_no_repeated_calls,
     assert_no_tool_called,
     assert_only_tools_used,
@@ -24,6 +25,7 @@ __all__ = [
     "assert_cost_under",
     "assert_tool_called",
     "assert_no_tool_called",
+    "assert_max_tool_calls",
     "assert_no_repeated_calls",
     "assert_only_tools_used",
     "assert_tool_not_called_with",

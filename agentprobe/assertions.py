@@ -82,6 +82,43 @@ def assert_no_tool_called(calls: list[dict[str, Any]], tool_name: str) -> None:
         )
 
 
+def assert_max_tool_calls(
+    calls: list[dict[str, Any]],
+    limit: int,
+    *,
+    tool_name: str | None = None,
+) -> None:
+    """Assert the agent stays within a total tool-call budget.
+
+    A ceiling on how many tool calls a run may make — the efficiency counterpart
+    to the per-tool checks. An agent can avoid repeating any single call (so
+    :func:`assert_no_repeated_calls` passes) and still be wastefully chatty,
+    making far more calls than the task needs; this catches that. Unlike
+    ``assert_tool_called(..., max_times=n)``, the budget may be met with *zero*
+    calls, and ``tool_name=None`` bounds the whole run rather than one tool.
+
+    Args:
+        calls: Tool call records. Entries with no recognizable tool name are not
+            counted, so interleaved non-tool records don't inflate the budget.
+        limit: The maximum number of tool calls allowed (must be non-negative).
+        tool_name: If given, only count calls to this tool; otherwise count every
+            recognizable tool call.
+
+    Raises:
+        AssertionError: If the number of (matching) tool calls exceeds ``limit``.
+        ValueError: If ``limit`` is negative.
+    """
+    if limit < 0:
+        raise ValueError("limit must be non-negative")
+    names = [name for call in calls if (name := _tool_name(call)) is not None]
+    counted = [n for n in names if n == tool_name] if tool_name is not None else names
+    if len(counted) > limit:
+        scope = f"to '{tool_name}'" if tool_name is not None else "in total"
+        raise AssertionError(
+            f"Agent made {len(counted)} tool call(s) {scope}, over the budget of {limit}."
+        )
+
+
 def assert_only_tools_used(
     calls: list[dict[str, Any]],
     allowed_tools: Iterable[str],

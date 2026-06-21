@@ -114,6 +114,13 @@ assert_tool_called(tool_calls, "api_call", max_times=3)   # retried, but bounded
 assert_tool_called(tool_calls, "web_search", min_times=2)  # at least two searches
 ```
 
+For overall efficiency, `assert_max_tool_calls` bounds the whole run rather than one tool — an agent can avoid repeating any single call and still be wastefully chatty. Unlike `max_times`, the budget may be met with zero calls:
+
+```python
+assert_max_tool_calls(tool_calls, 10)                      # solve it in at most 10 calls
+assert_max_tool_calls(tool_calls, 3, tool_name="api_call")  # at most 3 api_calls (zero is fine)
+```
+
 `with_args` is a nested subset match and also accepts OpenAI-style JSON string arguments:
 
 ```python

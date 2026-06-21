@@ -4,6 +4,7 @@ import pytest
 from pydantic import BaseModel
 
 from agentprobe.assertions import (
+    assert_max_tool_calls,
     assert_no_repeated_calls,
     assert_no_tool_called,
     assert_only_tools_used,
@@ -21,6 +22,7 @@ class SummaryResult(BaseModel):
 
 
 # -- assert_tool_called --
+
 
 def test_tool_called_passes():
     calls = [{"name": "search", "arguments": {"query": "AI"}}]
@@ -193,6 +195,7 @@ def test_tool_sequence_reports_remaining_expected_tools():
 
 # -- assert_schema --
 
+
 def test_schema_from_dict():
     data = {"title": "Test", "bullet_points": ["a", "b"], "confidence": 0.9}
     result = assert_schema(data, SummaryResult)
@@ -202,6 +205,7 @@ def test_schema_from_dict():
 
 def test_schema_from_json_string():
     import json
+
     data = json.dumps({"title": "T", "bullet_points": [], "confidence": 0.5})
     result = assert_schema(data, SummaryResult)
     assert isinstance(result, SummaryResult)
@@ -225,12 +229,14 @@ def test_schema_bad_json_raises():
 
 # -- assert_only_tools_used --
 
+
 def test_only_tools_used_passes_within_allowlist():
     calls = [{"name": "search"}, {"name": "read_file"}]
     assert_only_tools_used(calls, {"search", "read_file", "list_dir"})
 
 
 # -- with_args nested list subset --
+
 
 def test_with_args_list_subset_allows_extra_actual_items():
     # A list in with_args is a prefix-subset: extra trailing items in the actual
@@ -256,6 +262,7 @@ def test_only_tools_used_raises_on_out_of_scope_tool():
 
 
 # -- assert_no_repeated_calls --
+
 
 def test_no_repeated_calls_passes_for_varied_calls():
     calls = [
@@ -292,3 +299,43 @@ def test_no_repeated_calls_allows_bounded_retries():
 def test_no_repeated_calls_rejects_bad_max_consecutive():
     with pytest.raises(ValueError):
         assert_no_repeated_calls([], max_consecutive=0)
+
+
+# -- assert_max_tool_calls --
+
+
+def test_max_tool_calls_within_total_budget_passes():
+    calls = [{"name": "a"}, {"name": "b"}, {"name": "a"}]
+    assert_max_tool_calls(calls, 3)
+    assert_max_tool_calls(calls, 5)
+
+
+def test_max_tool_calls_over_total_budget_raises():
+    calls = [{"name": "a"}, {"name": "b"}, {"name": "c"}, {"name": "d"}]
+    with pytest.raises(AssertionError, match="4 tool call.*in total.*budget of 3"):
+        assert_max_tool_calls(calls, 3)
+
+
+def test_max_tool_calls_zero_budget_allows_no_calls():
+    # Unlike assert_tool_called(max_times=0), the budget may be met with zero.
+    assert_max_tool_calls([], 0)
+    with pytest.raises(AssertionError):
+        assert_max_tool_calls([{"name": "a"}], 0)
+
+
+def test_max_tool_calls_scoped_to_one_tool():
+    calls = [{"name": "search"}, {"name": "search"}, {"name": "write"}]
+    assert_max_tool_calls(calls, 2, tool_name="search")
+    with pytest.raises(AssertionError, match="to 'search'"):
+        assert_max_tool_calls(calls, 1, tool_name="search")
+
+
+def test_max_tool_calls_ignores_unrecognized_records():
+    # A record with no recognizable tool name must not count against the budget.
+    calls = [{"name": "a"}, {"not_a_tool": True}, {"name": "b"}]
+    assert_max_tool_calls(calls, 2)
+
+
+def test_max_tool_calls_negative_limit_raises_value_error():
+    with pytest.raises(ValueError, match="non-negative"):
+        assert_max_tool_calls([], -1)
