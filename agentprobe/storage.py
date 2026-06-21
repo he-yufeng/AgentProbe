@@ -6,10 +6,13 @@ import json
 import os
 import tempfile
 import time
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 
 DEFAULT_DIR = Path(".agentprobe") / "snapshots"
+
+_T = TypeVar("_T")
 
 
 def _snapshot_path(name: str, directory: Path = DEFAULT_DIR) -> Path:
@@ -21,7 +24,12 @@ def load_snapshot(name: str, directory: Path = DEFAULT_DIR) -> dict[str, Any] | 
     path = _snapshot_path(name, directory)
     if not path.exists():
         return None
-    return json.loads(path.read_text(encoding="utf-8"))
+    # Reading needs the same Windows retry as the write side: a reader that opens
+    # the file at the instant a concurrent writer is replacing it can hit a
+    # PermissionError, so back off and retry rather than surfacing a spurious
+    # error under parallel pytest-xdist contention.
+    text = _retry_on_windows_lock(lambda: path.read_text(encoding="utf-8"))
+    return json.loads(text)
 
 
 def save_snapshot(name: str, data: dict[str, Any], directory: Path = DEFAULT_DIR) -> Path:
@@ -36,7 +44,7 @@ def save_snapshot(name: str, data: dict[str, Any], directory: Path = DEFAULT_DIR
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(payload)
-        _replace_with_retry(tmp, path)
+        _retry_on_windows_lock(lambda: os.replace(tmp, path))
     except BaseException:
         # Don't leave a temp file behind if the write or replace fails.
         try:
@@ -47,26 +55,26 @@ def save_snapshot(name: str, data: dict[str, Any], directory: Path = DEFAULT_DIR
     return path
 
 
-def _replace_with_retry(
-    src: str, dst: Path, attempts: int = 40, base_delay: float = 0.005
-) -> None:
-    """``os.replace`` with exponential-backoff retry for Windows file-locking.
+def _retry_on_windows_lock(
+    action: Callable[[], _T], attempts: int = 40, base_delay: float = 0.005
+) -> _T:
+    """Run a filesystem ``action``, retrying the Windows file-lock PermissionError.
 
-    On POSIX ``os.replace`` succeeds even while a reader holds ``dst`` open. On
-    Windows it can raise ``PermissionError`` if another thread/process is reading
-    ``dst`` at that instant. Under sustained contention — the documented use case
-    of many parallel pytest-xdist workers hammering one snapshot — the lock can
-    recur, so back off exponentially (capped) to widen the retry window well
-    beyond a single momentary hold before giving up. The happy path still
-    replaces on the first attempt with no delay.
+    On POSIX, replacing or reading a snapshot succeeds even while another thread
+    holds the file open. On Windows either side can raise ``PermissionError`` if
+    a concurrent replace/read overlaps at that instant. Under sustained
+    contention — the documented use case of many parallel pytest-xdist workers
+    hammering one snapshot — the lock can recur, so back off exponentially
+    (capped) to widen the retry window well beyond a single momentary hold before
+    giving up. The happy path still runs on the first attempt with no delay.
     """
     delay = base_delay
     for attempt in range(attempts):
         try:
-            os.replace(src, dst)
-            return
+            return action()
         except PermissionError:
             if attempt == attempts - 1:
                 raise
             time.sleep(delay)
             delay = min(delay * 2, 0.1)
+    raise AssertionError("unreachable")  # pragma: no cover
