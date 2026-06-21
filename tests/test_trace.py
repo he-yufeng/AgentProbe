@@ -122,3 +122,11 @@ def test_assert_cost_under_raises_without_pricing_source():
     # an explicit empty table prices nothing -> can't estimate -> AssertionError
     with pytest.raises(AssertionError, match="Cannot estimate cost"):
         assert_cost_under(trace, 1.0, pricing={})
+
+
+def test_estimate_cost_with_model_but_no_tokens_is_none():
+    trace = Trace()
+    # A model recorded without token counts can't be priced — that should be
+    # None ("don't know"), not a $0 step that silently understates the run.
+    trace.record_llm("a", model="gpt-4o")
+    assert trace.estimate_cost(_PRICING) is None

@@ -119,7 +119,10 @@ class Trace:
             model = step.data.get("model")
             inp = step.data.get("input_tokens", 0) or 0
             out = step.data.get("output_tokens", 0) or 0
-            if not model and not (inp or out):
+            # A step needs token counts to be priced. A model name with no token
+            # data isn't a $0 step — it's unpriceable, so skip it rather than
+            # quietly counting it as free and understating the run's cost.
+            if not (inp or out):
                 continue
             cost = price(model, inp, out)
             if cost is not None:
