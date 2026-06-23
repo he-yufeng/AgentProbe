@@ -1,8 +1,6 @@
 <div align="center">
 
-# AgentProbe
-
-**Regression-testing for AI agents. Like Jest snapshots, but for LLMs.**
+<img src="docs/banner.png" alt="AgentProbe — regression-testing for AI agents" width="100%">
 
 Capture your agent's outputs, store them as baselines, and catch regressions in CI — with one decorator.
 
@@ -10,7 +8,7 @@ Capture your agent's outputs, store them as baselines, and catch regressions in 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![CI](https://github.com/he-yufeng/AgentProbe/actions/workflows/ci.yml/badge.svg)](https://github.com/he-yufeng/AgentProbe/actions)
 
-**[English](README.md) | [中文](README_CN.md)**
+**[English](README.md) · [中文](README_CN.md)** &nbsp;·&nbsp; [Quick Start](#quick-start) · [How It Works](#how-it-works) · [How It Compares](#how-it-compares)
 
 </div>
 
@@ -23,6 +21,10 @@ You ship an AI agent. It works great. Two weeks later, you update a prompt, swap
 Traditional unit tests don't work for agents. The outputs are non-deterministic. They're natural language, not exact values. You can't just `assertEqual`. And even if you could, you'd spend more time writing test fixtures than writing the agent itself.
 
 **AgentProbe** fixes this. One decorator captures your agent's output and saves it as a baseline snapshot. On the next run, it compares the new output against the baseline — using exact match or semantic similarity. If something changed, the test fails. Run it in CI, and you'll catch regressions before they hit production.
+
+## How It Works
+
+![AgentProbe snapshot flow](docs/architecture.png)
 
 ## Quick Start
 
