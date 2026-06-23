@@ -331,6 +331,14 @@ Snapshots are stored as JSON in `.agentprobe/snapshots/`. The first time you run
 
 Contributions welcome. If you're testing AI agents in production and have ideas for what's missing, open an issue.
 
+## Related projects
+
+- [IssueBenchKit](https://github.com/he-yufeng/IssueBenchKit) — turn real GitHub issues into reproducible coding-agent benchmark tasks
+- [LiteBench](https://github.com/he-yufeng/LiteBench) — a pip-installable benchmark runner for LLMs and agents
+- [CodeJoust](https://github.com/he-yufeng/CodeJoust) — pit coding agents against the same bug and score the patches
+- [FlightBox](https://github.com/he-yufeng/FlightBox) — record, replay, and diff local agent sessions
+- [agentcikit](https://github.com/he-yufeng/agentcikit) — CLI tools for AI-agent, MCP, and CI evidence and safety
+
 ## License
 
 [MIT](LICENSE)
