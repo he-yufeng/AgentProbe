@@ -323,11 +323,14 @@ Snapshots are stored as JSON in `.agentprobe/snapshots/`. The first time you run
 
 ## Roadmap
 
-- [x] Async agent support (`async def` tests)
-- [x] Multi-step agent tracing (record intermediate steps)
-- [x] Cost tracking integration (with TokenTracker)
-- [x] Visual diff in terminal for snapshot mismatches
-- [x] `pytest-xdist` parallel support (atomic snapshot writes)
+**Shipped:** async agent tests (`async def`), multi-step tracing of intermediate steps, cost tracking via TokenTracker, an in-terminal visual diff for snapshot mismatches, and `pytest-xdist` parallel runs with atomic snapshot writes.
+
+**Planned:**
+
+- **Interactive snapshot review** — an `--agentprobe-review` mode that walks each changed snapshot and lets you accept or reject it one at a time, instead of regenerating every baseline at once.
+- **Tool-call sequence assertions** — assert an agent called tools in an expected order, not only that the final output matches, since the order is often where a regression actually hides.
+- **Framework adapters** — first-class step capture for LangChain, LlamaIndex, and the OpenAI Assistants API, so tracing a multi-step run needs no hand-written glue.
+- **Offline semantic mode** — a local embedding backend for semantic comparison, so threshold checks run without an API call per assertion.
 
 ## Contributing
 

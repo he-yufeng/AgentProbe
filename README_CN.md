@@ -233,11 +233,14 @@ pip install agentprobe[semantic]
 
 ## 路线图
 
-- [x] 异步 Agent 支持
-- [ ] 多步 Agent 追踪（记录中间步骤）
-- [ ] 成本追踪集成（与 TokenTracker 联动）
-- [x] 终端中的可视化 diff
-- [ ] `pytest-xdist` 并行支持
+**已完成**：异步 Agent 测试（`async def`）、多步追踪（记录中间步骤）、与 TokenTracker 联动的成本追踪、快照不一致时的终端可视化 diff，以及带原子写入的 `pytest-xdist` 并行支持。
+
+**规划中**：
+
+- **交互式快照评审**：一个 `--agentprobe-review` 模式，逐个走查发生变化的快照、一条条接受或拒绝，而不是一次性重建所有基线。
+- **工具调用顺序断言**：断言 Agent 是否按预期顺序调用了工具，而不只是看最终输出是否匹配——回归往往就藏在调用顺序里。
+- **框架适配器**：对 LangChain、LlamaIndex、OpenAI Assistants API 的一等步骤捕获，让多步运行的追踪不再需要手写胶水代码。
+- **离线语义模式**：给语义比对加一个本地 embedding 后端，让阈值检查不必每次断言都打一次 API。
 
 ## 贡献
 
