@@ -1,8 +1,6 @@
 <div align="center">
 
-# AgentProbe
-
-**AI Agent 回归测试框架。像 Jest 快照测试，但专为 LLM 设计。**
+<img src="docs/banner.png" alt="AgentProbe — AI Agent 回归测试框架" width="100%">
 
 一个装饰器捕获 Agent 输出，存为基线，CI 中自动检测回归。
 
@@ -10,7 +8,7 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![CI](https://github.com/he-yufeng/AgentProbe/actions/workflows/ci.yml/badge.svg)](https://github.com/he-yufeng/AgentProbe/actions)
 
-**[English](README.md) | [中文](README_CN.md)**
+**[English](README.md) · [中文](README_CN.md)** &nbsp;·&nbsp; [快速开始](#快速开始) · [工作原理](#工作原理) · [与其他工具对比](#与其他工具对比)
 
 </div>
 
@@ -23,6 +21,10 @@
 传统单元测试不适用于 Agent。输出是非确定性的，是自然语言而不是精确值。你不能简单地 `assertEqual`。就算能，写测试 fixture 的时间比写 Agent 还长。
 
 **AgentProbe** 解决这个问题。一个装饰器捕获你的 Agent 输出并保存为基线快照。下次运行时，它会把新输出和基线对比——支持精确匹配和语义相似度。如果有变化，测试失败。在 CI 中运行，就能在上线前捕获回归。
+
+## 工作原理
+
+![AgentProbe 快照流程](docs/architecture.png)
 
 ## 快速开始
 
