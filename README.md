@@ -336,13 +336,14 @@ Snapshots are stored as JSON in `.agentprobe/snapshots/`. The first time you run
 
 Contributions welcome. If you're testing AI agents in production and have ideas for what's missing, open an issue.
 
-## Related projects
+## Related Projects
 
-- [IssueBenchKit](https://github.com/he-yufeng/IssueBenchKit) — turn real GitHub issues into reproducible coding-agent benchmark tasks
-- [LiteBench](https://github.com/he-yufeng/LiteBench) — a pip-installable benchmark runner for LLMs and agents
-- [CodeJoust](https://github.com/he-yufeng/CodeJoust) — pit coding agents against the same bug and score the patches
-- [FlightBox](https://github.com/he-yufeng/FlightBox) — record, replay, and diff local agent sessions
-- [agentcikit](https://github.com/he-yufeng/agentcikit) — CLI tools for AI-agent, MCP, and CI evidence and safety
+AgentProbe is part of a small family of agent-testing tools I maintain. A few related ones:
+
+- **[CoreCoder](https://github.com/he-yufeng/CoreCoder)** — want to understand how a coding agent really works? Read the whole ~1k-line engine end to end, not a black box.
+- **[RepoWiki](https://github.com/he-yufeng/RepoWiki)** — dropped into an unfamiliar codebase? It gives you a guided wiki and a where-to-start reading path, a self-hostable DeepWiki alternative.
+- **[LiteBench](https://github.com/he-yufeng/LiteBench)** — benchmark any LLM in one command: HumanEval, GSM8K and MMLU built in, plus your own tasks.
+- **[agentcikit](https://github.com/he-yufeng/agentcikit)** — the CI safety layer for LLM agents: replay runs, fence tool calls, and triage failures before they ship.
 
 ## License
 
