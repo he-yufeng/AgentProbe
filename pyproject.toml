@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "agentprobe"
+name = "agentpoke"
 version = "0.1.0"
 description = "Drop-in pytest plugin for regression-testing AI agents — snapshot baselines, semantic comparison, mock LLMs"
 readme = "README.md"

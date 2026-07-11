@@ -29,7 +29,7 @@ Traditional unit tests don't work for agents. The outputs are non-deterministic.
 ## Quick Start
 
 ```bash
-pip install agentprobe
+pip install agentpoke
 ```
 
 ### 1. Snapshot Testing
@@ -195,7 +195,7 @@ def test_run_stays_under_budget():
 
     # pricing dict: {model: (input_per_1k_usd, output_per_1k_usd)}
     assert_cost_under(trace, 0.05, pricing={"gpt-4o": (0.005, 0.015)})
-    # or pricing=None to use TokenTracker's table (pip install tokentracker)
+    # or pricing=None to use TokenTracker's table (pip install toktally)
 ```
 
 ## Pytest Integration
@@ -248,7 +248,7 @@ agentprobe update
 For semantic mode, install the optional dependency:
 
 ```bash
-pip install agentprobe[semantic]
+pip install agentpoke[semantic]
 ```
 
 ## MockLLM Features
@@ -298,7 +298,7 @@ Add this to your CI pipeline:
 ```yaml
 - name: Run agent tests
   run: |
-    pip install agentprobe
+    pip install agentpoke
     pytest tests/ -v
 ```
 
