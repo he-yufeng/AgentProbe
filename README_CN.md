@@ -141,6 +141,43 @@ def test_output_structure():
     assert result.confidence > 0.8
 ```
 
+### 5. 多步骤追踪
+
+逐步记录 Agent 做了什么，再对这条 trace 做断言或快照。`trace.tool_calls` 可以直接喂给断言辅助函数：
+
+```python
+from agentprobe import Trace, assert_tool_sequence
+
+def test_research_flow():
+    trace = Trace()
+    # 随 Agent 运行记录每一步（工具调用、LLM 轮次、自定义事件）
+    trace.record_llm("planning the search")
+    trace.record_tool_call("search", {"query": "rainfall 2023"})
+    trace.record_event("retry", attempt=2)
+    trace.record_tool_call("fetch", {"url": "https://example.com"})
+
+    assert_tool_sequence(trace.tool_calls, ["search", "fetch"])
+    assert trace.names == ["llm", "search", "retry", "fetch"]
+    # trace.to_dict() 对快照友好，适合做整段运行的回归测试
+```
+
+### 6. 成本追踪
+
+在 trace 上记录 token 用量，断言整段运行没超出美元预算，把那些悄悄烧更多钱的回归（更长的 prompt、多出来的轮次、换了更贵的模型）挡在合并之前。价格可以来自一个 dict、一个 callable，或者在装了 [TokenTracker](https://github.com/he-yufeng/TokenTracker) 时用它的价格表：
+
+```python
+from agentprobe import Trace, assert_cost_under
+
+def test_run_stays_under_budget():
+    trace = Trace()
+    trace.record_llm("plan", model="gpt-4o", input_tokens=1200, output_tokens=300)
+    trace.record_llm("answer", model="gpt-4o", input_tokens=800, output_tokens=500)
+
+    # 价格 dict：{模型: (每 1k 输入价 usd, 每 1k 输出价 usd)}
+    assert_cost_under(trace, 0.05, pricing={"gpt-4o": (0.005, 0.015)})
+    # 或 pricing=None，改用 TokenTracker 的价格表（pip install toktally）
+```
+
 ## Pytest 集成
 
 AgentProbe 自动注册为 pytest 插件，提供 `agentprobe` fixture：
