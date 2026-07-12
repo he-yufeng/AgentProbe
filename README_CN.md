@@ -29,7 +29,7 @@
 ## 快速开始
 
 ```bash
-pip install agentprobe
+pip install agentpoke
 ```
 
 ### 1. 快照测试
@@ -228,7 +228,7 @@ agentprobe update
 语义模式需安装可选依赖：
 
 ```bash
-pip install agentprobe[semantic]
+pip install agentpoke[semantic]
 ```
 
 ## 与其他工具对比
@@ -248,7 +248,7 @@ pip install agentprobe[semantic]
 ```yaml
 - name: Run agent tests
   run: |
-    pip install agentprobe
+    pip install agentpoke
     pytest tests/ -v
 ```
 
