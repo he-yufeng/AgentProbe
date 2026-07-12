@@ -123,15 +123,7 @@ assert_max_tool_calls(tool_calls, 10)                      # solve it in at most
 assert_max_tool_calls(tool_calls, 3, tool_name="api_call")  # at most 3 api_calls (zero is fine)
 ```
 
-`with_args` is a nested subset match and also accepts OpenAI-style JSON string arguments:
-
-```python
-assert_tool_called(
-    tool_calls,
-    "write_file",
-    with_args={"metadata": {"mode": "safe"}},
-)
-```
+`with_args` (used above) is a nested subset match — `with_args={"metadata": {"mode": "safe"}}` matches that key inside a larger payload — and also accepts OpenAI-style JSON string arguments.
 
 For safety checks, `assert_tool_not_called_with` is the negative counterpart: it allows the tool but fails if any call carried a forbidden argument subset — handy when a tool is fine to use except in a dangerous mode:
 
