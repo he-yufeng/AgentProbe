@@ -32,6 +32,8 @@ Traditional unit tests don't work for agents. The outputs are non-deterministic.
 pip install agentpoke
 ```
 
+> Heads up: the PyPI distribution is `agentpoke` (the name `agentprobe` was taken), but you import it as `agentprobe` in code — `from agentprobe import ...`.
+
 ### 1. Snapshot Testing
 
 Capture agent outputs and compare them across runs:
