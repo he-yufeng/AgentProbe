@@ -18,9 +18,9 @@ Capture your agent's outputs, store them as baselines, and catch regressions in 
 
 You ship an AI agent. It works great. Two weeks later, you update a prompt, swap a model, or bump a dependency — and something breaks. But you don't notice until a user complains, because **there's no test that catches agent behavior regressions**.
 
-Traditional unit tests don't work for agents. The outputs are non-deterministic. They're natural language, not exact values. You can't just `assertEqual`. And even if you could, you'd spend more time writing test fixtures than writing the agent itself.
+Traditional unit tests don't work for agents. The outputs are non-deterministic natural language, so you can't just `assertEqual` — and writing fixtures by hand costs more than writing the agent.
 
-**AgentProbe** fixes this. One decorator captures your agent's output and saves it as a baseline snapshot. On the next run, it compares the new output against the baseline — using exact match or semantic similarity. If something changed, the test fails. Run it in CI, and you'll catch regressions before they hit production.
+**AgentProbe** fixes this. One decorator captures your agent's output and saves it as a baseline snapshot. On the next run, it compares the new output against the baseline — exact match or semantic similarity. If something changed, the test fails. Run it in CI, and you catch regressions before they hit production.
 
 ## How It Works
 
@@ -36,119 +36,69 @@ pip install agentpoke
 
 ### 1. Snapshot Testing
 
-Capture agent outputs and compare them across runs:
-
 ```python
 from agentprobe import snapshot
 
 @snapshot("summarize_article")
 def test_summarize():
-    # Your agent code here
     result = my_agent.summarize("The quick brown fox jumps over the lazy dog.")
     return result
 ```
 
-First run: creates a baseline in `.agentprobe/snapshots/summarize_article.json`.
-Next runs: compares the output against the baseline. Fails if they differ.
+First run: creates a baseline in `.agentprobe/snapshots/summarize_article.json`. Next runs: compares the output against the baseline and fails if they differ. `async def` tests work the same way. Snapshots are meant to be committed, so CI can compare against them.
 
-Async agents work the same way:
-
-```python
-@snapshot("async_summarize")
-async def test_async_summarize():
-    result = await my_agent.summarize_async("The quick brown fox jumps over the lazy dog.")
-    return result
-```
-
-When the output carries non-deterministic fields like timestamps or request ids, list them in `redact` so they're masked before comparison and don't cause spurious mismatches:
+Non-deterministic fields and credentials are handled before comparison:
 
 ```python
+# mask volatile fields at any depth so they don't cause spurious mismatches
 @snapshot("summarize_article", redact=["timestamp", "request_id"])
-def test_summarize():
-    return my_agent.summarize("...")  # {"summary": "...", "timestamp": 1718...}
-```
 
-The named keys are replaced with `"<redacted>"` at any depth before the snapshot is saved and compared. Real changes to other fields still fail the snapshot.
-
-Snapshots get committed to your repo, so they must not carry credentials. `redact_secrets=True` masks API keys, tokens, JWTs, and emails even when they're embedded inside a longer string — key redaction only replaces whole values, secret scrubbing pulls them out of free text. `redact_patterns=[...]` does the same for your own regex shapes:
-
-```python
+# scrub API keys, tokens, JWTs and emails even inside free text,
+# plus your own regex shapes (also globally via --agentprobe-redact-secrets)
 @snapshot("summarize_article", redact_secrets=True, redact_patterns=[r"internal-\d{4}"])
-def test_summarize():
-    return my_agent.summarize("...")
 ```
-
-The pytest plugin can turn secret scrubbing on globally with `--agentprobe-redact-secrets`.
 
 ### 2. Mock LLM
 
-Test agent logic without hitting any API:
+`MockLLM` is a drop-in replacement for `openai.Client` that returns scripted responses, so agent logic tests hit no API:
 
 ```python
 from agentprobe import MockLLM
 
-def test_agent_with_mock():
-    mock = MockLLM(responses=[
-        "The document discusses three main topics.",
-        "Based on my analysis, the sentiment is positive."
-    ])
+mock = MockLLM(responses=[
+    "The document discusses three main topics.",
+    {"tool_calls": [{"id": "1", "function": {"name": "search", "arguments": '{"q": "test"}'}}]},
+])
 
-    # Use mock.chat.completions.create as a drop-in for openai
-    result = mock.chat.completions.create(
-        messages=[{"role": "user", "content": "Summarize this doc"}]
-    )
-    assert "three main topics" in result.choices[0].message.content
-    assert mock.call_count == 1
+result = mock.chat.completions.create(messages=[{"role": "user", "content": "Summarize this doc"}])
+assert "three main topics" in result.choices[0].message.content
+assert mock.call_count == 1  # mock.calls records everything; mock.reset() for reuse
 ```
+
+Scripted responses are consumed in order; `default_response=` covers the tail once they run out.
 
 ### 3. Tool Call Assertions
 
-Verify your agent calls the right tools:
+Verify your agent calls the right tools, in the right shape:
 
 ```python
 from agentprobe import assert_no_tool_called, assert_tool_called, assert_tool_sequence
 
-def test_agent_uses_search():
-    tool_calls = [
-        {"name": "web_search", "arguments": {"query": "latest news"}},
-        {"name": "summarize", "arguments": {"text": "..."}},
-    ]
-    assert_tool_called(tool_calls, "web_search", times=1)
-    assert_tool_called(tool_calls, "web_search", with_args={"query": "latest news"})
-    assert_tool_sequence(tool_calls, ["web_search", "summarize"])
-    assert_no_tool_called(tool_calls, "delete_file")
+assert_tool_called(tool_calls, "web_search", times=1)
+assert_tool_called(tool_calls, "web_search", with_args={"query": "latest news"})
+assert_tool_sequence(tool_calls, ["web_search", "summarize"])
+assert_no_tool_called(tool_calls, "delete_file")
 ```
 
-For multi-step agents, `assert_tool_sequence(..., contiguous=True)` catches accidental planner reorderings where a tool must immediately follow another tool.
+The variants cover the messy real cases:
 
-When the exact call count is non-deterministic, use `min_times`/`max_times` instead of `times` — for example, assert a flaky API was retried at most three times, or a search ran at least twice:
-
-```python
-assert_tool_called(tool_calls, "api_call", max_times=3)   # retried, but bounded
-assert_tool_called(tool_calls, "web_search", min_times=2)  # at least two searches
-```
-
-For overall efficiency, `assert_max_tool_calls` bounds the whole run rather than one tool — an agent can avoid repeating any single call and still be wastefully chatty. Unlike `max_times`, the budget may be met with zero calls:
-
-```python
-assert_max_tool_calls(tool_calls, 10)                      # solve it in at most 10 calls
-assert_max_tool_calls(tool_calls, 3, tool_name="api_call")  # at most 3 api_calls (zero is fine)
-```
-
-`with_args` (used above) is a nested subset match — `with_args={"metadata": {"mode": "safe"}}` matches that key inside a larger payload — and also accepts OpenAI-style JSON string arguments.
-
-For safety checks, `assert_tool_not_called_with` is the negative counterpart: it allows the tool but fails if any call carried a forbidden argument subset — handy when a tool is fine to use except in a dangerous mode:
-
-```python
-# the agent may run shell commands, but never with sudo
-assert_tool_not_called_with(tool_calls, "run", {"sudo": True})
-# and may delete files, but never the filesystem root
-assert_tool_not_called_with(tool_calls, "delete_file", {"path": "/"})
-```
+- `assert_tool_sequence(..., contiguous=True)` catches planner reorderings where a tool must immediately follow another.
+- `min_times`/`max_times` replace `times` when the exact count is non-deterministic: `assert_tool_called(tool_calls, "api_call", max_times=3)` bounds a flaky retry.
+- `assert_max_tool_calls(tool_calls, 10)` budgets the whole run, not just one tool (zero calls still passes).
+- `with_args` is a nested subset match and also accepts OpenAI-style JSON string arguments.
+- `assert_tool_not_called_with(tool_calls, "run", {"sudo": True})` allows the tool but fails on a dangerous argument subset.
 
 ### 4. Schema Validation
-
-Assert that agent outputs conform to a structure:
 
 ```python
 from pydantic import BaseModel
@@ -167,44 +117,35 @@ def test_output_structure():
 
 ### 5. Multi-Step Tracing
 
-Record what an agent did step by step, then assert over the trace or snapshot it. `trace.tool_calls` drops straight into the assertion helpers:
+Record what an agent did step by step, then assert over the trace or snapshot it:
 
 ```python
 from agentprobe import Trace, assert_tool_sequence
 
-def test_research_flow():
-    trace = Trace()
-    # record steps as your agent runs (tool calls, LLM turns, custom events)
-    trace.record_llm("planning the search")
-    trace.record_tool_call("search", {"query": "rainfall 2023"})
-    trace.record_event("retry", attempt=2)
-    trace.record_tool_call("fetch", {"url": "https://example.com"})
+trace = Trace()
+trace.record_llm("planning the search")
+trace.record_tool_call("search", {"query": "rainfall 2023"})
+trace.record_event("retry", attempt=2)
+trace.record_tool_call("fetch", {"url": "https://example.com"})
 
-    assert_tool_sequence(trace.tool_calls, ["search", "fetch"])
-    assert trace.names == ["llm", "search", "retry", "fetch"]
-    # trace.to_dict() is snapshot-friendly for full-run regression tests
+assert_tool_sequence(trace.tool_calls, ["search", "fetch"])
+assert trace.names == ["llm", "search", "retry", "fetch"]
+# trace.to_dict() is snapshot-friendly for full-run regression tests
 ```
 
 ### 6. Cost Tracking
 
-Record token usage on a trace and assert the run stayed under a USD budget — catching regressions that quietly burn more money (longer prompts, extra turns, a pricier model). Pricing comes from a dict, a callable, or [TokenTracker](https://github.com/he-yufeng/TokenTracker)'s price table when it's installed:
+Record token usage and assert the run stayed under a USD budget — catching regressions that quietly burn more money. Pricing comes from a dict, a callable, or [TokenTracker](https://github.com/he-yufeng/TokenTracker)'s price table (`pip install toktally`):
 
 ```python
-from agentprobe import Trace, assert_cost_under
+from agentprobe import assert_cost_under
 
-def test_run_stays_under_budget():
-    trace = Trace()
-    trace.record_llm("plan", model="gpt-4o", input_tokens=1200, output_tokens=300)
-    trace.record_llm("answer", model="gpt-4o", input_tokens=800, output_tokens=500)
-
-    # pricing dict: {model: (input_per_1k_usd, output_per_1k_usd)}
-    assert_cost_under(trace, 0.05, pricing={"gpt-4o": (0.005, 0.015)})
-    # or pricing=None to use TokenTracker's table (pip install toktally)
+assert_cost_under(trace, 0.05, pricing={"gpt-4o": (0.005, 0.015)})  # (input, output) per 1k tokens
 ```
 
 ## Pytest Integration
 
-AgentProbe registers as a pytest plugin automatically. Use the `agentprobe` fixture:
+AgentProbe registers as a pytest plugin automatically:
 
 ```python
 def test_with_fixture(agentprobe):
@@ -213,74 +154,20 @@ def test_with_fixture(agentprobe):
     assert result.passed
 ```
 
-### CLI Flags
-
 ```bash
-# Run tests normally
-pytest tests/
-
-# Update all snapshots (regenerate baselines)
-pytest tests/ --agentprobe-update
-
-# Use semantic comparison instead of exact match
+pytest tests/                                        # run tests
+pytest tests/ --agentprobe-update                    # regenerate baselines after intentional changes
 pytest tests/ --agentprobe-mode=semantic --agentprobe-threshold=0.85
 ```
 
-When a snapshot changes, AgentProbe prints a unified diff between the stored JSON snapshot
-and the current output, so CI logs show the exact field or sentence that drifted.
-
-### AgentProbe CLI
-
-```bash
-# Run tests
-agentprobe run
-
-# Run with semantic comparison
-agentprobe run --mode semantic --threshold 0.9
-
-# Update all snapshots
-agentprobe update
-```
+When a snapshot changes, AgentProbe prints a unified diff between the stored JSON and the current output, so CI logs show the exact field or sentence that drifted. The standalone CLI mirrors the flags: `agentprobe run`, `agentprobe run --mode semantic --threshold 0.9`, `agentprobe update`.
 
 ## Comparison Modes
 
 | Mode | How it works | When to use |
 |------|-------------|-------------|
 | `exact` (default) | String equality after serialization | Deterministic agents, structured outputs |
-| `semantic` | Cosine similarity via sentence-transformers | Non-deterministic LLM outputs |
-
-For semantic mode, install the optional dependency:
-
-```bash
-pip install agentpoke[semantic]
-```
-
-## MockLLM Features
-
-`MockLLM` is a drop-in replacement for `openai.Client` that returns scripted responses:
-
-```python
-from agentprobe import MockLLM
-
-# Scripted responses (consumed in order)
-mock = MockLLM(responses=["First response", "Second response"])
-
-# Falls back to default after scripted responses are exhausted
-mock = MockLLM(responses=["Only one"], default_response="I don't know")
-
-# Simulate tool calls
-mock = MockLLM(responses=[
-    {"tool_calls": [{"id": "1", "function": {"name": "search", "arguments": '{"q": "test"}'}}]}
-])
-
-# Check what was called
-mock.create(messages=[{"role": "user", "content": "Hi"}])
-print(mock.calls)       # all recorded calls
-print(mock.call_count)   # number of calls
-
-# Reset for reuse
-mock.reset()
-```
+| `semantic` | Cosine similarity via sentence-transformers (`pip install agentpoke[semantic]`) | Non-deterministic LLM outputs |
 
 ## How It Compares
 
@@ -297,8 +184,6 @@ mock.reset()
 
 ## GitHub Actions
 
-Add this to your CI pipeline:
-
 ```yaml
 - name: Run agent tests
   run: |
@@ -306,34 +191,28 @@ Add this to your CI pipeline:
     pytest tests/ -v
 ```
 
-Snapshot files (`.agentprobe/snapshots/`) should be committed to your repo so CI can compare against them.
+Commit `.agentprobe/snapshots/` so CI can compare against them.
 
 ## FAQ
 
-**Do I need an API key to use AgentProbe?**
-No. Use `MockLLM` for deterministic tests without any API calls. If you want to test against a real LLM, you'll need the appropriate API key, but that's your agent's dependency, not AgentProbe's.
-
-**How does semantic comparison work?**
-It uses sentence-transformers to embed both the baseline and current output, then computes cosine similarity. If the score is above the threshold (default 0.85), the test passes. This handles cases where the wording changes but the meaning stays the same.
-
-**Can I use this with LangChain / CrewAI / AutoGen?**
-Yes. AgentProbe doesn't care what framework you use. It tests the output of your agent, not the internals. Just call your agent inside the test function and return the result.
+**Do I need an API key?**
+No. `MockLLM` gives you deterministic tests without any API calls. Testing against a real LLM needs that provider's key, which is your agent's dependency, not AgentProbe's.
 
 **What about flaky tests from non-deterministic outputs?**
-Use semantic mode with an appropriate threshold. If your agent's outputs vary significantly between runs, lower the threshold. If they should be consistent, raise it. You can also use `MockLLM` to make the underlying LLM deterministic.
+Use semantic mode with an appropriate threshold, or use `MockLLM` to make the underlying LLM deterministic.
 
-**How do snapshot files work?**
-Snapshots are stored as JSON in `.agentprobe/snapshots/`. The first time you run a test, it creates the baseline. Subsequent runs compare against it. Use `--agentprobe-update` to regenerate baselines after intentional changes.
+**Does it work with LangChain / CrewAI / AutoGen?**
+Yes. AgentProbe tests your agent's output, not its internals. Call your agent inside the test function and return the result.
 
 ## Roadmap
 
-**Shipped:** async agent tests (`async def`), tool-call assertions (presence, count bounds, ordering, forbidden-argument checks), multi-step tracing of intermediate steps, cost tracking via TokenTracker, an in-terminal visual diff for snapshot mismatches, and `pytest-xdist` parallel runs with atomic snapshot writes.
+**Shipped:** async agent tests, tool-call assertions (presence, count bounds, ordering, forbidden-argument checks), multi-step tracing, cost tracking via TokenTracker, in-terminal visual diffs for snapshot mismatches, `pytest-xdist` parallel runs with atomic snapshot writes, and pattern-based secret scrubbing for snapshots.
 
 **Planned:**
 
-- **Interactive snapshot review** — an `--agentprobe-review` mode that walks each changed snapshot and lets you accept or reject it one at a time, instead of regenerating every baseline at once.
-- **Framework adapters** — first-class step capture for LangChain, LlamaIndex, and the OpenAI Assistants API, so tracing a multi-step run needs no hand-written glue.
-- **Offline semantic mode** — a local embedding backend for semantic comparison, so threshold checks run without an API call per assertion.
+- **Interactive snapshot review** — an `--agentprobe-review` mode that walks each changed snapshot and lets you accept or reject it one at a time.
+- **Framework adapters** — first-class step capture for LangChain, LlamaIndex, and the OpenAI Assistants API.
+- **Offline semantic mode** — a local embedding backend, so threshold checks need no API call per assertion.
 
 ## Contributing
 
@@ -341,10 +220,8 @@ Contributions welcome. If you're testing AI agents in production and have ideas 
 
 ## Related Projects
 
-AgentProbe is part of a small family of agent-testing tools I maintain. A few related ones:
-
-- **[CoreCoder](https://github.com/he-yufeng/CoreCoder)** — want to understand how a coding agent really works? Read the whole ~1k-line engine end to end, not a black box.
-- **[RepoWiki](https://github.com/he-yufeng/RepoWiki)** — dropped into an unfamiliar codebase? It gives you a guided wiki and a where-to-start reading path, a self-hostable DeepWiki alternative.
+- **[CoreCoder](https://github.com/he-yufeng/CoreCoder)** — understand how a coding agent really works by reading the whole ~1k-line engine end to end.
+- **[RepoWiki](https://github.com/he-yufeng/RepoWiki)** — a guided wiki and where-to-start reading path for unfamiliar codebases, a self-hostable DeepWiki alternative.
 - **[LiteBench](https://github.com/he-yufeng/LiteBench)** — benchmark any LLM in one command: HumanEval, GSM8K and MMLU built in, plus your own tasks.
 - **[agentcikit](https://github.com/he-yufeng/agentcikit)** — the CI safety layer for LLM agents: replay runs, fence tool calls, and triage failures before they ship.
 
