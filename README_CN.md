@@ -67,6 +67,16 @@ def test_summarize():
 
 列出的 key 会在任意层级被替换为 `"<redacted>"` 再保存和比较；其他字段的真实变化仍会让快照失败。
 
+快照文件是要提交进仓库的，绝不能带凭据。`redact_secrets=True` 会把 API key、token、JWT、邮箱这类敏感值从文本里抠出来打码（按 key 名脱敏只能整个值替换，嵌在长文本里的密钥要靠它）；自定义形状用 `redact_patterns=[...]` 传正则：
+
+```python
+@snapshot("summarize_article", redact_secrets=True, redact_patterns=[r"internal-\d{4}"])
+def test_summarize():
+    return my_agent.summarize("...")
+```
+
+pytest 插件也可以全局开启：`--agentprobe-redact-secrets`。
+
 ### 2. Mock LLM
 
 不调用任何 API 测试 Agent 逻辑：

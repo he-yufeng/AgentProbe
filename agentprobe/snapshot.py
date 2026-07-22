@@ -182,6 +182,8 @@ def snapshot(
     threshold: float = 0.85,
     update: bool = False,
     redact: list[str] | None = None,
+    redact_patterns: list[str] | None = None,
+    redact_secrets: bool = False,
 ) -> Callable:
     """Decorator that captures the return value of a function and compares it to a snapshot.
 
@@ -192,7 +194,10 @@ def snapshot(
             return agent.run("Summarize this document")
 
     Pass ``redact=["timestamp", "request_id"]`` to mask non-deterministic fields
-    so they don't cause spurious snapshot mismatches.
+    so they don't cause spurious snapshot mismatches. ``redact_secrets=True``
+    additionally masks API keys, tokens, and emails embedded in free text
+    before the snapshot is stored; ``redact_patterns=[...]`` does the same for
+    custom regex shapes.
     """
 
     def decorator(fn: Callable) -> Callable:
@@ -210,6 +215,8 @@ def snapshot(
                     mode=mode,
                     threshold=threshold,
                     redact=redact,
+                    redact_patterns=redact_patterns,
+                    redact_secrets=redact_secrets,
                 )
                 return output
 
@@ -225,6 +232,8 @@ def snapshot(
                 mode=mode,
                 threshold=threshold,
                 redact=redact,
+                redact_patterns=redact_patterns,
+                redact_secrets=redact_secrets,
             )
             return output
 
@@ -241,8 +250,16 @@ def _assert_snapshot(
     mode: str,
     threshold: float,
     redact: list[str] | None = None,
+    redact_patterns: list[str] | None = None,
+    redact_secrets: bool = False,
 ) -> None:
-    snap = Snapshot(update=update, mode=mode, threshold=threshold)
+    snap = Snapshot(
+        update=update,
+        mode=mode,
+        threshold=threshold,
+        redact_patterns=tuple(redact_patterns or ()),
+        redact_secrets=redact_secrets,
+    )
     result = snap.capture(snap_name, output, redact=redact)
     if result.passed:
         return

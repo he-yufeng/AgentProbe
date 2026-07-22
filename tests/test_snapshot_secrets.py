@@ -71,3 +71,47 @@ def test_redaction_makes_comparison_secret_agnostic():
     snap3.capture("agnostic", {"reply": "call with sk-bbbbbbbbbbbb2222"})
     snap4 = Snapshot(redact_secrets=True)
     assert snap4.capture("agnostic", {"reply": "call with sk-cccccccccccc3333"}).passed
+
+
+def test_decorator_path_scrubs_secrets():
+    from agentprobe.snapshot import snapshot
+
+    @snapshot("deco_secret", redact_secrets=True)
+    def run():
+        return {"reply": "key sk-abcdefghijklmnop1234"}
+
+    run()  # creates the baseline
+    from agentprobe.storage import load_snapshot
+
+    stored = load_snapshot("deco_secret")
+    assert "sk-abcdefghijklmnop1234" not in str(stored)
+
+
+def test_decorator_path_custom_patterns():
+    from agentprobe.snapshot import snapshot
+
+    @snapshot("deco_pattern", redact_patterns=[r"internal-\d{4}"])
+    def run():
+        return {"host": "dial internal-4512"}
+
+    run()
+    from agentprobe.storage import load_snapshot
+
+    stored = load_snapshot("deco_pattern")
+    assert "internal-4512" not in str(stored)
+
+
+def test_decorator_path_async_scrubs_secrets():
+    import asyncio
+
+    from agentprobe.snapshot import snapshot
+
+    @snapshot("deco_async_secret", redact_secrets=True)
+    async def run():
+        return {"reply": "key sk-abcdefghijklmnop1234"}
+
+    asyncio.run(run())
+    from agentprobe.storage import load_snapshot
+
+    stored = load_snapshot("deco_async_secret")
+    assert "sk-abcdefghijklmnop1234" not in str(stored)

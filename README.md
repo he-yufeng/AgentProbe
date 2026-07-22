@@ -70,6 +70,16 @@ def test_summarize():
 
 The named keys are replaced with `"<redacted>"` at any depth before the snapshot is saved and compared. Real changes to other fields still fail the snapshot.
 
+Snapshots get committed to your repo, so they must not carry credentials. `redact_secrets=True` masks API keys, tokens, JWTs, and emails even when they're embedded inside a longer string — key redaction only replaces whole values, secret scrubbing pulls them out of free text. `redact_patterns=[...]` does the same for your own regex shapes:
+
+```python
+@snapshot("summarize_article", redact_secrets=True, redact_patterns=[r"internal-\d{4}"])
+def test_summarize():
+    return my_agent.summarize("...")
+```
+
+The pytest plugin can turn secret scrubbing on globally with `--agentprobe-redact-secrets`.
+
 ### 2. Mock LLM
 
 Test agent logic without hitting any API:
