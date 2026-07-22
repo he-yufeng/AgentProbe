@@ -27,6 +27,12 @@ def pytest_addoption(parser):
         default=0.85,
         help="Similarity threshold for semantic mode (default: 0.85).",
     )
+    group.addoption(
+        "--agentprobe-redact-secrets",
+        action="store_true",
+        default=False,
+        help="Mask API keys, tokens, and emails in snapshots before storing/comparing.",
+    )
 
 
 @pytest.fixture
@@ -35,4 +41,5 @@ def agentprobe(request) -> Snapshot:
     update = request.config.getoption("--agentprobe-update", default=False)
     mode = request.config.getoption("--agentprobe-mode", default="exact")
     threshold = request.config.getoption("--agentprobe-threshold", default=0.85)
-    return Snapshot(update=update, mode=mode, threshold=threshold)
+    redact_secrets = request.config.getoption("--agentprobe-redact-secrets", default=False)
+    return Snapshot(update=update, mode=mode, threshold=threshold, redact_secrets=redact_secrets)

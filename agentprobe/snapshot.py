@@ -5,6 +5,7 @@ from __future__ import annotations
 import functools
 import inspect
 import json
+import re
 import time
 from difflib import unified_diff
 from dataclasses import dataclass, field
@@ -33,6 +34,8 @@ class Snapshot:
     mode: str = "exact"
     threshold: float = 0.85
     redact: tuple[str, ...] = ()
+    redact_patterns: tuple[str, ...] = ()
+    redact_secrets: bool = False
     results: list[SnapshotResult] = field(default_factory=list)
 
     def capture(
@@ -45,11 +48,21 @@ class Snapshot:
         anywhere they appear before the snapshot is saved or compared, so they
         don't cause spurious mismatches. A per-call ``redact`` overrides the
         instance default.
+
+        ``redact_patterns`` and ``redact_secrets`` mask sensitive *values*
+        (API keys, tokens, emails) even when they sit inside a longer string —
+        key redaction only replaces whole values, these scrub the secrets out
+        of free text before it is stored or compared.
         """
         serialized = _serialize(output)
         redact_keys = tuple(redact) if redact is not None else self.redact
         if redact_keys:
             serialized = _redact(serialized, set(redact_keys))
+        patterns = list(self.redact_patterns)
+        if self.redact_secrets:
+            patterns += SECRET_PATTERNS
+        if patterns:
+            serialized = _redact_patterns(serialized, patterns)
         current = {"output": serialized, "timestamp": time.time()}
         baseline = load_snapshot(name)
 
@@ -114,6 +127,42 @@ def _redact(obj: Any, keys: set[str], placeholder: str = "<redacted>") -> Any:
     if isinstance(obj, list):
         return [_redact(v, keys, placeholder) for v in obj]
     return obj
+
+
+# Secret shapes worth masking by default when ``redact_secrets`` is on. Kept
+# deliberately tight so normal prose (words like "token") is untouched.
+SECRET_PATTERNS = [
+    r"sk-[A-Za-z0-9_-]{16,}",
+    r"(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{20,}",
+    r"github_pat_[A-Za-z0-9_]{20,}",
+    r"AKIA[0-9A-Z]{16}",
+    r"Bearer\s+[A-Za-z0-9._~+/=-]{16,}",
+    r"eyJ[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{6,}",
+    r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}",
+]
+
+
+def _redact_patterns(obj: Any, patterns: list[str], placeholder: str = "<redacted>") -> Any:
+    """Mask every regex match in ``patterns`` anywhere a string value appears.
+
+    Key redaction (``_redact``) only replaces whole values by key name; this
+    catches secrets embedded inside free text, which is where real snapshots
+    leak them.
+    """
+    compiled = [re.compile(p) for p in patterns]
+
+    def scrub(value: Any) -> Any:
+        if isinstance(value, str):
+            for pattern in compiled:
+                value = pattern.sub(placeholder, value)
+            return value
+        if isinstance(value, dict):
+            return {k: scrub(v) for k, v in value.items()}
+        if isinstance(value, list):
+            return [scrub(v) for v in value]
+        return value
+
+    return scrub(obj)
 
 
 def _compare(current: str, baseline: str, mode: str, threshold: float) -> tuple[bool, float | None]:
