@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterable
-from typing import Any, Type
+from typing import Any
 
 from pydantic import BaseModel, ValidationError
 
@@ -250,7 +250,7 @@ def assert_tool_sequence(
 
     if contiguous:
         window = len(expected)
-        for start in range(0, len(actual) - window + 1):
+        for start in range(len(actual) - window + 1):
             if actual[start : start + window] == expected:
                 return
         raise AssertionError(
@@ -271,7 +271,7 @@ def assert_tool_sequence(
     )
 
 
-def assert_schema(output: Any, schema: Type[BaseModel]) -> BaseModel:
+def assert_schema(output: Any, schema: type[BaseModel]) -> BaseModel:
     """Validate that output conforms to a Pydantic model.
 
     Args:
@@ -296,7 +296,9 @@ def assert_schema(output: Any, schema: Type[BaseModel]) -> BaseModel:
             raise AssertionError(f"Output is not valid JSON: {e}") from None
 
     if not isinstance(output, dict):
-        raise AssertionError(f"Expected dict or {schema.__name__}, got {type(output).__name__}")
+        raise AssertionError(  # noqa: TRY004 - assertion helper, not a type guard
+            f"Expected dict or {schema.__name__}, got {type(output).__name__}"
+        )
 
     try:
         return schema.model_validate(output)

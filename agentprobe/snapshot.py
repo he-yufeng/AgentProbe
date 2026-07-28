@@ -7,9 +7,10 @@ import inspect
 import json
 import re
 import time
-from difflib import unified_diff
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from difflib import unified_diff
+from typing import Any
 
 from agentprobe.storage import load_snapshot, save_last_run, save_snapshot
 

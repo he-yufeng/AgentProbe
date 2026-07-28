@@ -154,7 +154,7 @@ def _resolve_pricing(pricing: Any) -> Any:
     if pricing is None:
         try:
             from tokentracker.pricing import estimate_cost as tt_estimate_cost
-        except Exception:
+        except ImportError:
             return None
         return lambda model, inp, out: tt_estimate_cost(model, inp, out) if model else None
     if callable(pricing):
