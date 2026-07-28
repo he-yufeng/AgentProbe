@@ -161,6 +161,19 @@ pytest tests/ --agentprobe-mode=semantic --agentprobe-threshold=0.85
 
 快照变化时，AgentProbe 会在失败信息里输出存储 JSON 与当前输出的 unified diff，CI 日志直接看到哪个字段或哪句话漂移了。独立 CLI 与参数一一对应：`agentprobe run`、`agentprobe run --mode semantic --threshold 0.9`、`agentprobe update`。
 
+### 本地复盘失败快照
+
+比较失败时还会把本次实际输出存到 `.agentprobe/last_run/`，不用重跑测试就能检查漂移并决定是否接受：
+
+```bash
+agentprobe diff              # 基线 vs 最近失败输出，带相似度
+agentprobe diff summarize    # 只看某一个快照
+agentprobe accept            # 把全部 last_run 提升为新基线
+agentprobe accept summarize  # 只提升某一个
+```
+
+日常闭环就是这样：CI 红了，`agentprobe diff` 看清是哪句话变了，`agentprobe accept` 确认新基线。不用手改 JSON，也不用闭眼全量 update。
+
 ## 对比模式
 
 | 模式 | 工作原理 | 适用场景 |

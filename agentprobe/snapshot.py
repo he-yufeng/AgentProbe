@@ -11,7 +11,7 @@ from difflib import unified_diff
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
-from agentprobe.storage import load_snapshot, save_snapshot
+from agentprobe.storage import load_snapshot, save_last_run, save_snapshot
 
 
 @dataclass
@@ -265,6 +265,16 @@ def _assert_snapshot(
         return
 
     expected = result.baseline.get("output") if result.baseline else None
+    save_last_run(
+        snap_name,
+        {
+            "output": result.output,
+            "timestamp": time.time(),
+            "mode": mode,
+            "threshold": threshold,
+            "similarity": result.similarity,
+        },
+    )
     raise AssertionError(_format_mismatch(snap_name, expected, result.output, result.message))
 
 

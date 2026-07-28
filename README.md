@@ -162,6 +162,19 @@ pytest tests/ --agentprobe-mode=semantic --agentprobe-threshold=0.85
 
 When a snapshot changes, AgentProbe prints a unified diff between the stored JSON and the current output, so CI logs show the exact field or sentence that drifted. The standalone CLI mirrors the flags: `agentprobe run`, `agentprobe run --mode semantic --threshold 0.9`, `agentprobe update`.
 
+### Reviewing failures locally
+
+A failed comparison also saves the actual output to `.agentprobe/last_run/`, so you can review and accept drift without re-running the test suite:
+
+```bash
+agentprobe diff              # baseline vs last failing run, with similarity scores
+agentprobe diff summarize    # just one snapshot
+agentprobe accept            # promote all last-run outputs to baselines
+agentprobe accept summarize  # promote just one
+```
+
+That is the everyday loop: CI goes red, `agentprobe diff` shows exactly which sentence moved, `agentprobe accept` blesses the new normal. No hand-editing JSON, no blind `update` of everything.
+
 ## Comparison Modes
 
 | Mode | How it works | When to use |

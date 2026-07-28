@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, TypeVar
 
 DEFAULT_DIR = Path(".agentprobe") / "snapshots"
+LAST_RUN_DIR = Path(".agentprobe") / "last_run"
 
 _T = TypeVar("_T")
 
@@ -78,3 +79,23 @@ def _retry_on_windows_lock(
             time.sleep(delay)
             delay = min(delay * 2, 0.1)
     raise AssertionError("unreachable")  # pragma: no cover
+
+
+def save_last_run(name: str, data: dict[str, Any], directory: Path = LAST_RUN_DIR) -> Path:
+    """Persist the actual output of a failed comparison for `diff`/`accept`."""
+    return save_snapshot(name, data, directory)
+
+
+def load_last_run(name: str, directory: Path = LAST_RUN_DIR) -> dict[str, Any] | None:
+    return load_snapshot(name, directory)
+
+
+def list_last_runs(directory: Path = LAST_RUN_DIR) -> list[str]:
+    """Names of all snapshots with a saved failing run, sorted for stable output."""
+    if not directory.is_dir():
+        return []
+    return sorted(p.stem for p in directory.glob("*.json"))
+
+
+def delete_last_run(name: str, directory: Path = LAST_RUN_DIR) -> None:
+    _snapshot_path(name, directory).unlink(missing_ok=True)
