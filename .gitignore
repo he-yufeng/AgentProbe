@@ -6,6 +6,9 @@ build/
 # Note: .agentprobe/snapshots/ should be committed in user projects
 # so CI can compare against baselines. We ignore it here because
 # this is the AgentProbe source repo, not a user project.
+.agentprobe/
+# local dev artifact; the library is installed via pip, not uv
+uv.lock
 .pytest_cache/
 .ruff_cache/
 *.egg
