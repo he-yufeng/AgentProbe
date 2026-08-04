@@ -168,6 +168,7 @@ pytest tests/ --agentprobe-mode=semantic --agentprobe-threshold=0.85
 ```bash
 agentprobe diff              # 基线 vs 最近失败输出，带相似度
 agentprobe diff summarize    # 只看某一个快照
+agentprobe diff --html report.html  # 自包含 HTML 报告，适合分享或挂 CI 构件
 agentprobe accept            # 把全部 last_run 提升为新基线
 agentprobe accept summarize  # 只提升某一个
 ```
@@ -216,7 +217,7 @@ agentprobe accept summarize  # 只提升某一个
 
 ## 路线图
 
-**已完成**：异步 Agent 测试、工具调用断言（存在性、次数上下界、调用顺序、禁用参数检查）、多步追踪、与 TokenTracker 联动的成本追踪、快照不一致时的终端可视化 diff、带原子写入的 `pytest-xdist` 并行支持、按模式脱敏的快照密钥清洗。
+**已完成**：异步 Agent 测试、工具调用断言（存在性、次数上下界、调用顺序、禁用参数检查）、多步追踪、与 TokenTracker 联动的成本追踪、快照不一致时的终端可视化 diff 与 `--html` 自包含报告、带原子写入的 `pytest-xdist` 并行支持、按模式脱敏的快照密钥清洗。
 
 **规划中**：
 

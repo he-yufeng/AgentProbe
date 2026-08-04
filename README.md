@@ -169,6 +169,7 @@ A failed comparison also saves the actual output to `.agentprobe/last_run/`, so 
 ```bash
 agentprobe diff              # baseline vs last failing run, with similarity scores
 agentprobe diff summarize    # just one snapshot
+agentprobe diff --html report.html  # self-contained HTML report for sharing or CI artifacts
 agentprobe accept            # promote all last-run outputs to baselines
 agentprobe accept summarize  # promote just one
 ```
@@ -219,7 +220,7 @@ Yes. AgentProbe tests your agent's output, not its internals. Call your agent in
 
 ## Roadmap
 
-**Shipped:** async agent tests, tool-call assertions (presence, count bounds, ordering, forbidden-argument checks), multi-step tracing, cost tracking via TokenTracker, in-terminal visual diffs for snapshot mismatches, `pytest-xdist` parallel runs with atomic snapshot writes, and pattern-based secret scrubbing for snapshots.
+**Shipped:** async agent tests, tool-call assertions (presence, count bounds, ordering, forbidden-argument checks), multi-step tracing, cost tracking via TokenTracker, in-terminal visual diffs for snapshot mismatches plus self-contained `--html` diff reports, `pytest-xdist` parallel runs with atomic snapshot writes, and pattern-based secret scrubbing for snapshots.
 
 **Planned:**
 
