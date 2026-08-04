@@ -115,3 +115,45 @@ def test_accept_all_and_empty(workdir: Path) -> None:
     result = CliRunner().invoke(main, ["accept"])
     assert result.exit_code == 0
     assert load_last_run("summarize") is None
+
+
+def test_diff_html_writes_escaped_report(workdir: Path, tmp_path: Path) -> None:
+    _seed_baseline_and_last_run()
+    out = tmp_path / "report.html"
+
+    result = CliRunner().invoke(main, ["diff", "--html", str(out)])
+
+    assert result.exit_code == 0, result.output
+    body = out.read_text(encoding="utf-8")
+    assert "<h1>AgentProbe diff report</h1>" in body
+    assert "summarize" in body
+    assert "old summary" in body and "new summary" in body
+    assert "similarity" in body
+    assert "<span class=\"ins\">" in body and "<span class=\"del\">" in body
+
+
+def test_diff_html_escapes_snapshot_content(workdir: Path, tmp_path: Path) -> None:
+    save_snapshot("evil", {"output": {"text": "<script>alert(1)</script>"}, "timestamp": 1.0})
+    save_last_run("evil", {"output": {"text": "<b>ok</b>"}, "timestamp": 2.0})
+    out = tmp_path / "report.html"
+
+    result = CliRunner().invoke(main, ["diff", "--html", str(out)])
+
+    assert result.exit_code == 0, result.output
+    body = out.read_text(encoding="utf-8")
+    assert "<script>alert(1)</script>" not in body
+    assert "&lt;script&gt;alert(1)&lt;/script&gt;" in body
+
+
+def test_render_diff_report_hunk_headers_not_colored() -> None:
+    from agentprobe.report import render_diff_report
+
+    body = render_diff_report([{
+        "name": "s",
+        "diff": "--- baseline\n+++ last_run\n@@ -1 +1 @@\n-old\n+new",
+        "similarity": None,
+    }])
+    assert '<span class="ctx">--- baseline</span>' in body
+    assert '<span class="ctx">+++ last_run</span>' in body
+    assert '<span class="ins">+new</span>' in body
+    assert '<span class="del">-old</span>' in body
