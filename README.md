@@ -169,6 +169,7 @@ A failed comparison also saves the actual output to `.agentprobe/last_run/`, so 
 ```bash
 agentprobe diff              # baseline vs last failing run, with similarity scores
 agentprobe diff summarize    # just one snapshot
+agentprobe diff --stat       # one line per snapshot: +added -removed counts, for triage before drilling in
 agentprobe diff --html report.html  # self-contained HTML report for sharing or CI artifacts
 agentprobe accept            # promote all last-run outputs to baselines
 agentprobe accept summarize  # promote just one

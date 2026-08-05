@@ -168,6 +168,7 @@ pytest tests/ --agentprobe-mode=semantic --agentprobe-threshold=0.85
 ```bash
 agentprobe diff              # 基线 vs 最近失败输出，带相似度
 agentprobe diff summarize    # 只看某一个快照
+agentprobe diff --stat       # 每个快照一行：+新增 -删除 行数，先过一遍再逐个深挖
 agentprobe diff --html report.html  # 自包含 HTML 报告，适合分享或挂 CI 构件
 agentprobe accept            # 把全部 last_run 提升为新基线
 agentprobe accept summarize  # 只提升某一个

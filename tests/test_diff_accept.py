@@ -157,3 +157,29 @@ def test_render_diff_report_hunk_headers_not_colored() -> None:
     assert '<span class="ctx">+++ last_run</span>' in body
     assert '<span class="ins">+new</span>' in body
     assert '<span class="del">-old</span>' in body
+
+
+def test_diff_stat_summary(workdir: Path) -> None:
+    _seed_baseline_and_last_run()
+    result = CliRunner().invoke(main, ["diff", "--stat"])
+
+    assert result.exit_code == 0
+    assert "summarize: +1 -1" in result.output
+    assert "similarity: 0.7200" in result.output
+    # no diff body in stat mode
+    assert '"text": "old summary"' not in result.output
+
+
+def test_diff_stat_and_html_conflict(workdir: Path, tmp_path: Path) -> None:
+    _seed_baseline_and_last_run()
+    result = CliRunner().invoke(main, ["diff", "--stat", "--html", str(tmp_path / "r.html")])
+
+    assert result.exit_code != 0
+    assert "cannot be combined" in result.output
+
+
+def test_diff_stat_counts_skip_headers() -> None:
+    from agentprobe.cli import _diff_stat
+
+    diff_text = "--- baseline\n+++ last_run\n@@ -1,3 +1,3 @@\n ctx\n-old\n+new\n+extra"
+    assert _diff_stat(diff_text) == (2, 1)

@@ -61,12 +61,29 @@ def _diff_lines(baseline: object, actual: object) -> str:
     )
 
 
+def _diff_stat(diff_text: str) -> tuple[int, int]:
+    """(+added, -removed) changed lines in a unified diff, headers excluded."""
+    adds = dels = 0
+    for line in diff_text.splitlines():
+        if line.startswith(("--- ", "+++ ", "@@")):
+            continue
+        if line.startswith("+"):
+            adds += 1
+        elif line.startswith("-"):
+            dels += 1
+    return adds, dels
+
+
 @main.command()
 @click.argument("name", required=False)
 @click.option("--html", "html_path", default=None, type=click.Path(dir_okay=False, path_type=Path),
               help="Write the diffs as a self-contained HTML report instead of printing.")
-def diff(name: str | None, html_path: Path | None):
+@click.option("--stat", "stat_only", is_flag=True,
+              help="Print only per-snapshot change counts and similarity, not the diffs.")
+def diff(name: str | None, html_path: Path | None, stat_only: bool):
     """Show baseline vs last failing run, one name or all of them."""
+    if html_path is not None and stat_only:
+        raise click.UsageError("--stat and --html cannot be combined.")
     names = [name] if name else list_last_runs()
     if not names:
         click.echo("No saved failing runs.")
@@ -87,6 +104,13 @@ def diff(name: str | None, html_path: Path | None):
                 "mode": last.get("mode"),
                 "threshold": last.get("threshold"),
             })
+            continue
+        if stat_only:
+            adds, dels = _diff_stat(diff_text)
+            line = f"{snap_name}: +{adds} -{dels}"
+            if last.get("similarity") is not None:
+                line += f"  similarity: {last['similarity']:.4f} (mode={last.get('mode')}, threshold={last.get('threshold')})"
+            click.echo(line)
             continue
         click.echo(f"--- {snap_name} ---")
         if last.get("similarity") is not None:
