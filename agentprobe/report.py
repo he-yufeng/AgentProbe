@@ -25,7 +25,7 @@ pre { margin: 0; padding: .8rem .9rem; overflow-x: auto; font-size: .82rem; line
 
 def _row(line: str) -> str:
     esc = html.escape(line)
-    if line.startswith("--- ") or line.startswith("+++ ") or line.startswith("@@"):
+    if line.startswith(("--- ", "+++ ", "@@")):
         return f'<span class="ctx">{esc}</span>'
     if line.startswith("+"):
         return f'<span class="ins">{esc}</span>'
