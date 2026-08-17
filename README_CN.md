@@ -170,6 +170,7 @@ agentprobe diff              # 基线 vs 最近失败输出，带相似度
 agentprobe diff summarize    # 只看某一个快照
 agentprobe diff --stat       # 每个快照一行：+新增 -删除 行数，先过一遍再逐个深挖
 agentprobe diff --html report.html  # 自包含 HTML 报告，适合分享或挂 CI 构件
+agentprobe review            # 逐个走查失败输出：看 diff，然后接受、拒绝或跳过
 agentprobe accept            # 把全部 last_run 提升为新基线
 agentprobe accept summarize  # 只提升某一个
 ```
@@ -218,11 +219,10 @@ agentprobe accept summarize  # 只提升某一个
 
 ## 路线图
 
-**已完成**：异步 Agent 测试、工具调用断言（存在性、次数上下界、调用顺序、禁用参数检查）、多步追踪、与 TokenTracker 联动的成本追踪、快照不一致时的终端可视化 diff 与 `--html` 自包含报告、带原子写入的 `pytest-xdist` 并行支持、按模式脱敏的快照密钥清洗。
+**已完成**：异步 Agent 测试、工具调用断言（存在性、次数上下界、调用顺序、禁用参数检查）、多步追踪、与 TokenTracker 联动的成本追踪、快照不一致时的终端可视化 diff 与 `--html` 自包含报告、带原子写入的 `pytest-xdist` 并行支持、按模式脱敏的快照密钥清洗、交互式快照评审（`agentprobe review` 逐个走查变化的快照、一条条接受或拒绝）。
 
 **规划中**：
 
-- **交互式快照评审**：`--agentprobe-review` 模式，逐个走查变化的快照、一条条接受或拒绝。
 - **框架适配器**：对 LangChain、LlamaIndex、OpenAI Assistants API 的一等步骤捕获，多步运行追踪不再需要手写胶水。
 - **离线语义模式**：本地 embedding 后端，阈值检查不必每次断言都打 API。
 

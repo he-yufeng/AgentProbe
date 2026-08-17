@@ -171,6 +171,7 @@ agentprobe diff              # baseline vs last failing run, with similarity sco
 agentprobe diff summarize    # just one snapshot
 agentprobe diff --stat       # one line per snapshot: +added -removed counts, for triage before drilling in
 agentprobe diff --html report.html  # self-contained HTML report for sharing or CI artifacts
+agentprobe review            # walk each failing run: see the diff, then accept, reject, or skip it
 agentprobe accept            # promote all last-run outputs to baselines
 agentprobe accept summarize  # promote just one
 ```
@@ -221,11 +222,10 @@ Yes. AgentProbe tests your agent's output, not its internals. Call your agent in
 
 ## Roadmap
 
-**Shipped:** async agent tests, tool-call assertions (presence, count bounds, ordering, forbidden-argument checks), multi-step tracing, cost tracking via TokenTracker, in-terminal visual diffs for snapshot mismatches plus self-contained `--html` diff reports, `pytest-xdist` parallel runs with atomic snapshot writes, and pattern-based secret scrubbing for snapshots.
+**Shipped:** async agent tests, tool-call assertions (presence, count bounds, ordering, forbidden-argument checks), multi-step tracing, cost tracking via TokenTracker, in-terminal visual diffs for snapshot mismatches plus self-contained `--html` diff reports, `pytest-xdist` parallel runs with atomic snapshot writes, pattern-based secret scrubbing for snapshots, and interactive snapshot review (`agentprobe review` walks each changed snapshot and lets you accept or reject it one at a time).
 
 **Planned:**
 
-- **Interactive snapshot review** — an `--agentprobe-review` mode that walks each changed snapshot and lets you accept or reject it one at a time.
 - **Framework adapters** — first-class step capture for LangChain, LlamaIndex, and the OpenAI Assistants API.
 - **Offline semantic mode** — a local embedding backend, so threshold checks need no API call per assertion.
 

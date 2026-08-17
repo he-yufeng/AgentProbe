@@ -183,3 +183,40 @@ def test_diff_stat_counts_skip_headers() -> None:
 
     diff_text = "--- baseline\n+++ last_run\n@@ -1,3 +1,3 @@\n ctx\n-old\n+new\n+extra"
     assert _diff_stat(diff_text) == (2, 1)
+
+
+def _seed_two_failing() -> None:
+    for name, text in [("first", "new one"), ("second", "new two")]:
+        save_snapshot(name, {"output": text.replace("new", "old"), "timestamp": 1.0})
+        save_last_run(name, {"output": text, "timestamp": 2.0})
+
+
+def test_review_accept_then_skip(workdir: Path) -> None:
+    _seed_two_failing()
+    result = CliRunner().invoke(main, ["review"], input="a\ns\n")
+
+    assert result.exit_code == 0
+    # accepted: baseline promoted, last_run gone
+    assert load_snapshot("first")["output"] == "new one"
+    assert load_last_run("first") is None
+    # skipped: baseline and last_run both untouched
+    assert load_snapshot("second")["output"] == "old two"
+    assert load_last_run("second")["output"] == "new two"
+    assert "1 accepted" in result.output and "1 skipped" in result.output
+
+
+def test_review_reject_discards_last_run_keeps_baseline(workdir: Path) -> None:
+    _seed_two_failing()
+    result = CliRunner().invoke(main, ["review", "first"], input="r\n")
+
+    assert result.exit_code == 0
+    assert load_snapshot("first")["output"] == "old one"
+    assert load_last_run("first") is None
+    assert "1 rejected" in result.output
+
+
+def test_review_no_failing_runs(workdir: Path) -> None:
+    result = CliRunner().invoke(main, ["review"])
+
+    assert result.exit_code == 0
+    assert "No saved failing runs." in result.output

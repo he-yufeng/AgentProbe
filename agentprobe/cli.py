@@ -138,3 +138,47 @@ def accept(name: str | None):
         save_snapshot(snap_name, {"output": last.get("output"), "timestamp": time.time()})
         delete_last_run(snap_name)
         click.echo(f"Accepted new baseline for '{snap_name}'.")
+
+
+@main.command()
+@click.argument("name", required=False)
+def review(name: str | None):
+    """Walk failing runs one by one: show the diff, then accept, reject, or skip.
+
+    accept promotes the run to the baseline, reject discards the stored run
+    (the test will fail again until the agent's code is fixed), skip leaves
+    both untouched.
+    """
+    names = [name] if name else list_last_runs()
+    if not names:
+        click.echo("No saved failing runs.")
+        return
+    accepted: list[str] = []
+    rejected: list[str] = []
+    for snap_name in names:
+        last = load_last_run(snap_name)
+        if last is None:
+            raise click.ClickException(f"No saved failing run for '{snap_name}'.")
+        baseline = load_snapshot(snap_name)
+        baseline_output = baseline.get("output") if baseline else None
+        click.echo(f"--- {snap_name} ---")
+        if last.get("similarity") is not None:
+            click.echo(f"similarity: {last['similarity']:.4f} (mode={last.get('mode')}, threshold={last.get('threshold')})")
+        click.echo(_diff_lines(baseline_output, last.get("output")))
+        choice = click.prompt(
+            "Accept this drift? [a]ccept/[r]eject/[s]kip",
+            type=click.Choice(["a", "r", "s"]),
+            default="s",
+            show_choices=False,
+        )
+        if choice == "a":
+            save_snapshot(snap_name, {"output": last.get("output"), "timestamp": time.time()})
+            delete_last_run(snap_name)
+            accepted.append(snap_name)
+        elif choice == "r":
+            delete_last_run(snap_name)
+            rejected.append(snap_name)
+    click.echo(
+        f"Reviewed {len(names)}: {len(accepted)} accepted, {len(rejected)} rejected, "
+        f"{len(names) - len(accepted) - len(rejected)} skipped."
+    )
