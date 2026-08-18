@@ -171,6 +171,7 @@ agentprobe diff summarize    # 只看某一个快照
 agentprobe diff --stat       # 每个快照一行：+新增 -删除 行数，先过一遍再逐个深挖
 agentprobe diff --html report.html  # 自包含 HTML 报告，适合分享或挂 CI 构件
 agentprobe review            # 逐个走查失败输出：看 diff，然后接受、拒绝或跳过
+agentprobe review --check    # CI 门禁：列出待走查的失败输出，有则退出码 1
 agentprobe accept            # 把全部 last_run 提升为新基线
 agentprobe accept summarize  # 只提升某一个
 ```

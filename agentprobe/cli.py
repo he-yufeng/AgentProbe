@@ -142,7 +142,8 @@ def accept(name: str | None):
 
 @main.command()
 @click.argument("name", required=False)
-def review(name: str | None):
+@click.option("--check", is_flag=True, help="List pending failing runs and exit 1 if any exist; for CI gates.")
+def review(name: str | None, check: bool):
     """Walk failing runs one by one: show the diff, then accept, reject, or skip.
 
     accept promotes the run to the baseline, reject discards the stored run
@@ -153,6 +154,19 @@ def review(name: str | None):
     if not names:
         click.echo("No saved failing runs.")
         return
+    if check:
+        pending = [(n, load_last_run(n)) for n in names]
+        pending = [(n, last) for n, last in pending if last is not None]
+        if not pending:
+            click.echo("No saved failing runs.")
+            return
+        for snap_name, last in pending:
+            line = snap_name
+            if last.get("similarity") is not None:
+                line += f" (similarity={last['similarity']:.4f})"
+            click.echo(line)
+        click.echo(f"{len(pending)} failing run(s) pending review.")
+        sys.exit(1)
     accepted: list[str] = []
     rejected: list[str] = []
     for snap_name in names:

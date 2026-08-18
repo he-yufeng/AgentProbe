@@ -220,3 +220,30 @@ def test_review_no_failing_runs(workdir: Path) -> None:
 
     assert result.exit_code == 0
     assert "No saved failing runs." in result.output
+
+
+def test_review_check_exits_nonzero_with_pending(workdir: Path) -> None:
+    _seed_two_failing()
+    result = CliRunner().invoke(main, ["review", "--check"])
+
+    assert result.exit_code == 1
+    assert "first" in result.output and "second" in result.output
+    assert "2 failing run(s) pending review." in result.output
+    # check never mutates state
+    assert load_last_run("first") is not None
+    assert load_snapshot("first")["output"] == "old one"
+
+
+def test_review_check_clean_when_nothing_pending(workdir: Path) -> None:
+    result = CliRunner().invoke(main, ["review", "--check"])
+
+    assert result.exit_code == 0
+    assert "No saved failing runs." in result.output
+
+
+def test_review_check_named_run_without_record_is_clean(workdir: Path) -> None:
+    _seed_two_failing()
+    result = CliRunner().invoke(main, ["review", "ghost", "--check"])
+
+    assert result.exit_code == 0
+    assert "No saved failing runs." in result.output

@@ -172,6 +172,7 @@ agentprobe diff summarize    # just one snapshot
 agentprobe diff --stat       # one line per snapshot: +added -removed counts, for triage before drilling in
 agentprobe diff --html report.html  # self-contained HTML report for sharing or CI artifacts
 agentprobe review            # walk each failing run: see the diff, then accept, reject, or skip it
+agentprobe review --check    # CI gate: list pending failing runs, exit 1 if any
 agentprobe accept            # promote all last-run outputs to baselines
 agentprobe accept summarize  # promote just one
 ```
