@@ -174,7 +174,12 @@ def _compare(current: str, baseline: str, mode: str, threshold: float) -> tuple[
 
         score = semantic_similarity(current, baseline)
         return score >= threshold, score
-    raise ValueError(f"Unknown comparison mode: {mode!r}. Use 'exact' or 'semantic'.")
+    if mode == "fuzzy":
+        from agentprobe.similarity import fuzzy_similarity
+
+        score = fuzzy_similarity(current, baseline)
+        return score >= threshold, score
+    raise ValueError(f"Unknown comparison mode: {mode!r}. Use 'exact', 'semantic' or 'fuzzy'.")
 
 
 def snapshot(

@@ -184,7 +184,8 @@ That is the everyday loop: CI goes red, `agentprobe diff` shows exactly which se
 | Mode | How it works | When to use |
 |------|-------------|-------------|
 | `exact` (default) | String equality after serialization | Deterministic agents, structured outputs |
-| `semantic` | Cosine similarity via sentence-transformers (`pip install agentpoke[semantic]`) | Non-deterministic LLM outputs |
+| `fuzzy` | Cosine similarity over character 3-gram sets, pure stdlib, no install | Catching wording drift in CI without an embedding model |
+| `semantic` | Cosine similarity via sentence-transformers (`pip install agentpoke[semantic]`) | Non-deterministic LLM outputs, paraphrase-level equivalence |
 
 ## How It Compares
 
@@ -228,7 +229,7 @@ Yes. AgentProbe tests your agent's output, not its internals. Call your agent in
 **Planned:**
 
 - **Framework adapters** — first-class step capture for LangChain, LlamaIndex, and the OpenAI Assistants API.
-- **Offline semantic mode** — a local embedding backend, so threshold checks need no API call per assertion.
+- **Offline semantic mode** — a local embedding backend lighter than sentence-transformers, so paraphrase-level checks need no torch install. (Wording-drift checks already run offline: `fuzzy` mode is pure stdlib.)
 
 ## Contributing
 

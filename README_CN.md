@@ -183,7 +183,8 @@ agentprobe accept summarize  # 只提升某一个
 | 模式 | 工作原理 | 适用场景 |
 |------|---------|---------|
 | `exact`（默认） | 序列化后字符串相等 | 确定性 Agent、结构化输出 |
-| `semantic` | 通过 sentence-transformers 计算余弦相似度（`pip install agentpoke[semantic]`） | 非确定性 LLM 输出 |
+| `fuzzy` | 字符 3-gram 集合余弦相似度，纯标准库零依赖 | 在 CI 里抓措辞漂移，不装 embedding 模型 |
+| `semantic` | 通过 sentence-transformers 计算余弦相似度（`pip install agentpoke[semantic]`） | 非确定性 LLM 输出、同义改写级等价 |
 
 ## 与其他工具对比
 
@@ -225,7 +226,7 @@ agentprobe accept summarize  # 只提升某一个
 **规划中**：
 
 - **框架适配器**：对 LangChain、LlamaIndex、OpenAI Assistants API 的一等步骤捕获，多步运行追踪不再需要手写胶水。
-- **离线语义模式**：本地 embedding 后端，阈值检查不必每次断言都打 API。
+- **离线语义模式**：比 sentence-transformers 更轻的本地 embedding 后端，paraphrase 级检查不用装 torch。（措辞漂移检查已经可以离线跑：`fuzzy` 模式纯标准库实现。）
 
 ## 贡献
 

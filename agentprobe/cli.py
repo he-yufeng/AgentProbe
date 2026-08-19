@@ -27,8 +27,8 @@ def main():
 
 
 @main.command()
-@click.option("--mode", default="exact", type=click.Choice(["exact", "semantic"]))
-@click.option("--threshold", default=0.85, type=float, help="Semantic similarity threshold.")
+@click.option("--mode", default="exact", type=click.Choice(["exact", "semantic", "fuzzy"]))
+@click.option("--threshold", default=0.85, type=float, help="Semantic/fuzzy similarity threshold.")
 @click.argument("pytest_args", nargs=-1)
 def run(mode: str, threshold: float, pytest_args: tuple[str, ...]):
     """Run agent tests via pytest."""

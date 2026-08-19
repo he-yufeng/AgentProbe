@@ -18,14 +18,14 @@ def pytest_addoption(parser):
     group.addoption(
         "--agentprobe-mode",
         default="exact",
-        choices=["exact", "semantic"],
-        help="Comparison mode: 'exact' or 'semantic' (default: exact).",
+        choices=["exact", "semantic", "fuzzy"],
+        help="Comparison mode: 'exact', 'semantic' or 'fuzzy' (default: exact).",
     )
     group.addoption(
         "--agentprobe-threshold",
         type=float,
         default=0.85,
-        help="Similarity threshold for semantic mode (default: 0.85).",
+        help="Similarity threshold for semantic/fuzzy mode (default: 0.85).",
     )
     group.addoption(
         "--agentprobe-redact-secrets",
