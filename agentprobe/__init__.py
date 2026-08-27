@@ -11,6 +11,7 @@ from agentprobe.assertions import (
     assert_tool_not_called_with,
     assert_tool_sequence,
 )
+from agentprobe.evalport import to_resultset, write_resultset
 from agentprobe.mock_llm import MockLLM
 from agentprobe.snapshot import Snapshot, snapshot
 from agentprobe.trace import Step, Trace
@@ -31,4 +32,6 @@ __all__ = [
     "assert_tool_not_called_with",
     "assert_tool_sequence",
     "snapshot",
+    "to_resultset",
+    "write_resultset",
 ]

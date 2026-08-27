@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from agentprobe.snapshot import Snapshot
+from agentprobe.snapshot import Snapshot, _start_session_recording, _stop_session_recording
 
 
 def pytest_addoption(parser):
@@ -33,6 +33,48 @@ def pytest_addoption(parser):
         default=False,
         help="Mask API keys, tokens, and emails in snapshots before storing/comparing.",
     )
+    group.addoption(
+        "--agentprobe-evalport",
+        metavar="PATH",
+        default=None,
+        help="Write the run's snapshot results to PATH as an EvalPort ResultSet JSON.",
+    )
+
+
+def pytest_configure(config):
+    if config.getoption("--agentprobe-evalport"):
+        from agentprobe import evalport
+
+        config._agentprobe_evalport_results = []
+        config._agentprobe_evalport_started = evalport._utcnow()
+        _start_session_recording(config._agentprobe_evalport_results.append)
+
+
+def pytest_sessionfinish(session):
+    config = session.config
+    path = config.getoption("--agentprobe-evalport")
+    if not path:
+        return
+    _stop_session_recording()
+    results = getattr(config, "_agentprobe_evalport_results", [])
+    if not results:
+        return
+    from agentprobe.evalport import write_resultset
+
+    write_resultset(results, path, started_at=config._agentprobe_evalport_started)
+
+
+def pytest_terminal_summary(terminalreporter, config):
+    path = config.getoption("--agentprobe-evalport")
+    if not path:
+        return
+    results = getattr(config, "_agentprobe_evalport_results", [])
+    if results:
+        terminalreporter.write_line(
+            f"agentprobe: wrote EvalPort ResultSet ({len(results)} result(s)) to {path}"
+        )
+    else:
+        terminalreporter.write_line("agentprobe: no snapshot results recorded, nothing exported")
 
 
 @pytest.fixture

@@ -158,9 +158,23 @@ def test_with_fixture(agentprobe):
 pytest tests/                                        # run tests
 pytest tests/ --agentprobe-update                    # regenerate baselines after intentional changes
 pytest tests/ --agentprobe-mode=semantic --agentprobe-threshold=0.85
+pytest tests/ --agentprobe-evalport=results.json     # export the run as an EvalPort ResultSet
 ```
 
 When a snapshot changes, AgentProbe prints a unified diff between the stored JSON and the current output, so CI logs show the exact field or sentence that drifted. The standalone CLI mirrors the flags: `agentprobe run`, `agentprobe run --mode semantic --threshold 0.9`, `agentprobe update`.
+
+### Exporting results
+
+`--agentprobe-evalport=PATH` writes the run's snapshot results as an EvalPort-compatible ResultSet, the open interchange format from [EvalPort](https://github.com/adhabnr-ux/evalport), so dashboards and CI tooling that already speak it can consume AgentProbe results directly. Each capture becomes one test-case result carrying a single `agentprobe_snapshot` grader: `passed` carries over, `similarity` becomes `score` (baseline creates and updates never compared anything, so they fall back to `1.0`), and `message` becomes `reason`.
+
+The same mapping works as a library call:
+
+```python
+from agentprobe import to_resultset, write_resultset
+
+resultset = to_resultset(snap.results, suite_id="my-agent")
+write_resultset(snap.results, "resultset.json")
+```
 
 ### Reviewing failures locally
 
@@ -224,7 +238,7 @@ Yes. AgentProbe tests your agent's output, not its internals. Call your agent in
 
 ## Roadmap
 
-**Shipped:** async agent tests, tool-call assertions (presence, count bounds, ordering, forbidden-argument checks), multi-step tracing, cost tracking via TokenTracker, in-terminal visual diffs for snapshot mismatches plus self-contained `--html` diff reports, `pytest-xdist` parallel runs with atomic snapshot writes, pattern-based secret scrubbing for snapshots, and interactive snapshot review (`agentprobe review` walks each changed snapshot and lets you accept or reject it one at a time).
+**Shipped:** async agent tests, tool-call assertions (presence, count bounds, ordering, forbidden-argument checks), multi-step tracing, cost tracking via TokenTracker, in-terminal visual diffs for snapshot mismatches plus self-contained `--html` diff reports, `pytest-xdist` parallel runs with atomic snapshot writes, pattern-based secret scrubbing for snapshots, interactive snapshot review (`agentprobe review` walks each changed snapshot and lets you accept or reject it one at a time), and EvalPort-compatible ResultSet export (`--agentprobe-evalport=PATH`) for downstream eval tooling.
 
 **Planned:**
 

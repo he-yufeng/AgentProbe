@@ -25,6 +25,27 @@ class SnapshotResult:
     passed: bool
     similarity: float | None = None
     message: str = ""
+    mode: str | None = None
+
+
+# Set by the pytest plugin when --agentprobe-evalport is active; every capture
+# in the session is then mirrored into the plugin's result list.
+_session_sink: Callable[[SnapshotResult], None] | None = None
+
+
+def _start_session_recording(sink: Callable[[SnapshotResult], None]) -> None:
+    global _session_sink
+    _session_sink = sink
+
+
+def _stop_session_recording() -> None:
+    global _session_sink
+    _session_sink = None
+
+
+def _emit(result: SnapshotResult) -> None:
+    if _session_sink is not None:
+        _session_sink(result)
 
 
 @dataclass
@@ -75,8 +96,10 @@ class Snapshot:
                 baseline=baseline,
                 passed=True,
                 message="snapshot created" if baseline is None else "snapshot updated",
+                mode=self.mode,
             )
             self.results.append(result)
+            _emit(result)
             return result
 
         baseline_output = baseline.get("output", "")
@@ -93,8 +116,10 @@ class Snapshot:
             passed=passed,
             similarity=similarity,
             message="" if passed else f"snapshot mismatch (similarity={similarity})",
+            mode=self.mode,
         )
         self.results.append(result)
+        _emit(result)
         return result
 
 

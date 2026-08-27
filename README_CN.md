@@ -157,9 +157,23 @@ def test_with_fixture(agentprobe):
 pytest tests/                                        # 正常运行测试
 pytest tests/ --agentprobe-update                    # 有意变更后重建基线
 pytest tests/ --agentprobe-mode=semantic --agentprobe-threshold=0.85
+pytest tests/ --agentprobe-evalport=results.json     # 把本次运行导出为 EvalPort ResultSet
 ```
 
 快照变化时，AgentProbe 会在失败信息里输出存储 JSON 与当前输出的 unified diff，CI 日志直接看到哪个字段或哪句话漂移了。独立 CLI 与参数一一对应：`agentprobe run`、`agentprobe run --mode semantic --threshold 0.9`、`agentprobe update`。
+
+### 导出结果
+
+`--agentprobe-evalport=PATH` 把本次运行的快照结果写成 EvalPort 兼容的 ResultSet，也就是 [EvalPort](https://github.com/adhabnr-ux/evalport) 定义的开放交换格式，已支持该格式的看板和 CI 工具可以直接消费 AgentProbe 的结果。每次捕获映射为一条 test-case 结果，带一个 `agentprobe_snapshot` grader：`passed` 原样保留，`similarity` 映射为 `score`（新建或更新基线时没有发生比较，回退为 `1.0`），`message` 映射为 `reason`。
+
+同样的映射也可以直接调 API：
+
+```python
+from agentprobe import to_resultset, write_resultset
+
+resultset = to_resultset(snap.results, suite_id="my-agent")
+write_resultset(snap.results, "resultset.json")
+```
 
 ### 本地复盘失败快照
 
@@ -221,7 +235,7 @@ agentprobe accept summarize  # 只提升某一个
 
 ## 路线图
 
-**已完成**：异步 Agent 测试、工具调用断言（存在性、次数上下界、调用顺序、禁用参数检查）、多步追踪、与 TokenTracker 联动的成本追踪、快照不一致时的终端可视化 diff 与 `--html` 自包含报告、带原子写入的 `pytest-xdist` 并行支持、按模式脱敏的快照密钥清洗、交互式快照评审（`agentprobe review` 逐个走查变化的快照、一条条接受或拒绝）。
+**已完成**：异步 Agent 测试、工具调用断言（存在性、次数上下界、调用顺序、禁用参数检查）、多步追踪、与 TokenTracker 联动的成本追踪、快照不一致时的终端可视化 diff 与 `--html` 自包含报告、带原子写入的 `pytest-xdist` 并行支持、按模式脱敏的快照密钥清洗、交互式快照评审（`agentprobe review` 逐个走查变化的快照、一条条接受或拒绝）、EvalPort 兼容的 ResultSet 结果导出（`--agentprobe-evalport=PATH`）。
 
 **规划中**：
 
