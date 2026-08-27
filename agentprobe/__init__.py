@@ -16,7 +16,7 @@ from agentprobe.mock_llm import MockLLM
 from agentprobe.snapshot import Snapshot, snapshot
 from agentprobe.trace import Step, Trace
 
-__version__ = "0.4.0"
+__version__ = "0.4.1"
 __all__ = [
     "MockLLM",
     "Snapshot",
