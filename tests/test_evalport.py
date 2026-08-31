@@ -157,6 +157,7 @@ def _run_pytest(cwd: Path, *args: str) -> subprocess.CompletedProcess:
         cwd=cwd,
         capture_output=True,
         text=True,
+        check=False,
     )
 
 
