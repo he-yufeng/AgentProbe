@@ -75,6 +75,27 @@ assert mock.call_count == 1  # mock.calls 记录全部调用；mock.reset() 复�
 
 剧本响应按序消费，用完后由 `default_response=` 兜底。
 
+异步 Agent、流式输出和故障注入也一样支持：
+
+```python
+from agentprobe import AsyncMockLLM, Flaky, MockRateLimitError
+
+# AsyncMockLLM 直接替换 agent 手里的 openai.AsyncOpenAI
+mock = AsyncMockLLM(responses=["你好！"])
+result = await mock.chat.completions.create(messages=[{"role": "user", "content": "打个招呼"}])
+
+# stream=True 产出 delta chunk，形状和真实客户端一致
+stream = await mock.chat.completions.create(messages=[...], stream=True)
+async for chunk in stream:
+    print(chunk.choices[0].delta.content or "", end="")
+
+# 把故障写进剧本，离线测重试和降级逻辑：
+# 前两次调用抛异常，第三次返回“已恢复”
+mock = MockLLM(responses=[Flaky(MockRateLimitError("限流了"), times=2, then="已恢复")])
+```
+
+剧本里直接放一个异常实例，轮到它时就抛一次；除 `MockRateLimitError` 外还内置 `MockTimeoutError` 和 `MockServerError`，也可以带自己的异常类型。
+
 ### 3. 工具调用断言
 
 验证 Agent 以正确的姿势调用了正确的工具：
@@ -207,7 +228,7 @@ agentprobe accept summarize  # 只提升某一个
 | pytest 原生 | 是（插件） | 独立运行器 | 仅 CLI |
 | 快照基线 | 是 | 否 | 否 |
 | 语义比较 | 是 | 是 | 是 |
-| Mock LLM | 是（内置） | 否 | 部分 |
+| Mock LLM | 是（内置：异步、流式、故障注入） | 否 | 部分 |
 | 工具调用断言 | 是 | 否 | 否 |
 | Schema 验证 | 是（Pydantic） | 部分 | 否 |
 | 需要云服务 | 否 | 可选 | 否 |
@@ -235,7 +256,7 @@ agentprobe accept summarize  # 只提升某一个
 
 ## 路线图
 
-**已完成**：异步 Agent 测试、工具调用断言（存在性、次数上下界、调用顺序、禁用参数检查）、多步追踪、与 TokenTracker 联动的成本追踪、快照不一致时的终端可视化 diff 与 `--html` 自包含报告、带原子写入的 `pytest-xdist` 并行支持、按模式脱敏的快照密钥清洗、交互式快照评审（`agentprobe review` 逐个走查变化的快照、一条条接受或拒绝）、EvalPort 兼容的 ResultSet 结果导出（`--agentprobe-evalport=PATH`）。
+**已完成**：异步 Agent 测试、工具调用断言（存在性、次数上下界、调用顺序、禁用参数检查）、多步追踪、与 TokenTracker 联动的成本追踪、快照不一致时的终端可视化 diff 与 `--html` 自包含报告、带原子写入的 `pytest-xdist` 并行支持、按模式脱敏的快照密钥清洗、交互式快照评审（`agentprobe review` 逐个走查变化的快照、一条条接受或拒绝）、EvalPort 兼容的 ResultSet 结果导出（`--agentprobe-evalport=PATH`），以及覆盖异步客户端、流式 chunk 和剧本化故障注入的 MockLLM。
 
 **规划中**：
 

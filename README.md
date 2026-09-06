@@ -77,6 +77,27 @@ assert mock.call_count == 1  # mock.calls records everything; mock.reset() for r
 
 Scripted responses are consumed in order; `default_response=` covers the tail once they run out.
 
+Async agents, streaming, and failure injection work the same way:
+
+```python
+from agentprobe import AsyncMockLLM, Flaky, MockRateLimitError
+
+# AsyncMockLLM drops in wherever an agent holds openai.AsyncOpenAI
+mock = AsyncMockLLM(responses=["Hello!"])
+result = await mock.chat.completions.create(messages=[{"role": "user", "content": "hi"}])
+
+# stream=True yields delta chunks with the real client's chunk shape
+stream = await mock.chat.completions.create(messages=[...], stream=True)
+async for chunk in stream:
+    print(chunk.choices[0].delta.content or "", end="")
+
+# script failures to test retry and fallback logic offline:
+# raises twice, then returns "recovered" on the third call
+mock = MockLLM(responses=[Flaky(MockRateLimitError("slow down"), times=2, then="recovered")])
+```
+
+A plain exception instance in the list raises once when its turn comes; `MockTimeoutError` and `MockServerError` ship alongside `MockRateLimitError`, or bring your own exception.
+
 ### 3. Tool Call Assertions
 
 Verify your agent calls the right tools, in the right shape:
@@ -208,7 +229,7 @@ That is the everyday loop: CI goes red, `agentprobe diff` shows exactly which se
 | pytest native | Yes (plugin) | Separate runner | CLI only |
 | Snapshot baselines | Yes | No | No |
 | Semantic comparison | Yes | Yes | Yes |
-| Mock LLM | Yes (built-in) | No | Partial |
+| Mock LLM | Yes (built-in: async, streaming, failure injection) | No | Partial |
 | Tool call assertions | Yes | No | No |
 | Schema validation | Yes (Pydantic) | Partial | No |
 | Cloud required | No | Optional | No |
@@ -238,7 +259,7 @@ Yes. AgentProbe tests your agent's output, not its internals. Call your agent in
 
 ## Roadmap
 
-**Shipped:** async agent tests, tool-call assertions (presence, count bounds, ordering, forbidden-argument checks), multi-step tracing, cost tracking via TokenTracker, in-terminal visual diffs for snapshot mismatches plus self-contained `--html` diff reports, `pytest-xdist` parallel runs with atomic snapshot writes, pattern-based secret scrubbing for snapshots, interactive snapshot review (`agentprobe review` walks each changed snapshot and lets you accept or reject it one at a time), and EvalPort-compatible ResultSet export (`--agentprobe-evalport=PATH`) for downstream eval tooling.
+**Shipped:** async agent tests, tool-call assertions (presence, count bounds, ordering, forbidden-argument checks), multi-step tracing, cost tracking via TokenTracker, in-terminal visual diffs for snapshot mismatches plus self-contained `--html` diff reports, `pytest-xdist` parallel runs with atomic snapshot writes, pattern-based secret scrubbing for snapshots, interactive snapshot review (`agentprobe review` walks each changed snapshot and lets you accept or reject it one at a time), EvalPort-compatible ResultSet export (`--agentprobe-evalport=PATH`) for downstream eval tooling, and a MockLLM that covers async clients, streaming chunks, and scripted failure injection.
 
 **Planned:**
 

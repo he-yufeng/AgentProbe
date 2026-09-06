@@ -12,13 +12,27 @@ from agentprobe.assertions import (
     assert_tool_sequence,
 )
 from agentprobe.evalport import to_resultset, write_resultset
-from agentprobe.mock_llm import MockLLM
+from agentprobe.mock_llm import (
+    AsyncMockLLM,
+    Flaky,
+    MockAPIError,
+    MockLLM,
+    MockRateLimitError,
+    MockServerError,
+    MockTimeoutError,
+)
 from agentprobe.snapshot import Snapshot, snapshot
 from agentprobe.trace import Step, Trace
 
 __version__ = "0.4.1"
 __all__ = [
+    "AsyncMockLLM",
+    "Flaky",
+    "MockAPIError",
     "MockLLM",
+    "MockRateLimitError",
+    "MockServerError",
+    "MockTimeoutError",
     "Snapshot",
     "Step",
     "Trace",
