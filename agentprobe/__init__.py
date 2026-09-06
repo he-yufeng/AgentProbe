@@ -24,7 +24,7 @@ from agentprobe.mock_llm import (
 from agentprobe.snapshot import Snapshot, snapshot
 from agentprobe.trace import Step, Trace
 
-__version__ = "0.4.1"
+__version__ = "0.4.2"
 __all__ = [
     "AsyncMockLLM",
     "Flaky",

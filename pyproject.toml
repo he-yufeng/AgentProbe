@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "agentpoke"
-version = "0.4.1"
+version = "0.4.2"
 description = "Drop-in pytest plugin for regression-testing AI agents — snapshot baselines, semantic comparison, mock LLMs"
 readme = "README.md"
 license = "MIT"
